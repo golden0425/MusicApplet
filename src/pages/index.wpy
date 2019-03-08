@@ -1,0 +1,556 @@
+<!--  -->
+<template>
+  <view class='container'>
+    <view class='nav_box'>
+      <view class='music_top_tips'>音遇领唱</view>
+      <image class='tips_icon' src='../assets/redbag_question.png' @tap.stop='isShowToast' />
+    </view>
+    <view class="music_image_box">
+      <image src="../assets/home_head_pic.png" mode="aspectFill" lazy-load="true" class="music_image"></image>
+    </view>
+    <view class='music_box'>
+      <repeat for="{{HomeData}}" key="index" index="index" item="item">
+        <view class='music_item' @tap.stop='toSongListRank({{item}})'>
+          <image class='music_bg' mode='aspectFit' src='{{item.bgImg}}' />
+          <view class='music_mask'></view>
+          <view class='music_name'>{{item.name}}</view>
+          <view class='musci_line'></view>
+          <view class='music_like_count'>本周{{!item.count?0:item.count}}人唱过</view>
+          <view class='music_action' @tap.stop='showList({{item}})'>跟唱模式</view>
+        </view>
+      </repeat>
+    </view>
+    <view wx:if='{{HomeData.length > 0}}' class='bottom_box'>
+      <view class='bottom_tip'>和音遇小姐姐yinyuxc(wx)一起建设更多歌单(๑•̀ㅂ•́)و✧</view>
+    </view>
+    <view class="hansel" @tap.stop='toSurvey'>
+      <view>
+        <image src='../assets/home_redbag.png' mode="aspectFill" lazy-load="false"></image>
+        <view>更多红包活动</view>
+      </view>
+    </view>
+    <view class='show_toast' wx:if='{{showToast}}' @tap.stop='isShowToast'>
+      <view class='show_toast_box'>
+        <view>音遇现场玩法</view>
+        <text>· 挑选你喜欢的歌来领唱 
+                · 系统根据本周的Pick值，评选领唱位 
+                · 每首歌的周榜单No.1会展示在领唱位，更多人听到你的歌声 
+          </text>
+        <view>* Pick值于每周日24点清零</view>
+        <view @tap.stop='isShowToast'>OK，知道啦</view>
+      </view>
+    </view>
+     <view class='show_toast' wx:if='{{showVersion}}'>
+      <view class='show_toast_box'>
+        <view>新版本来啦</view>
+        <text>{{showVersionMsg}}</text>
+        <view>{{showVersionTime}}</view>
+        <view @tap.stop='showVersion'>OK，知道啦</view>
+      </view>
+    </view>
+    <!-- 登录模块 -->
+    <button wx:if="{{(!loginType || loginType === 0)}}" class="login_button" open-type="getUserInfo" bindgetuserinfo="onGotUserInfo"></button>
+    <singIntroduct wx:if='{{showGroup && showSingIntroduct}}' />
+    <palletMask wx:if='{{globalShowAddTips}}' />
+    <view class="default_clolor" style="width: 100vw;height: 100vh;position:fixed;">
+      <image style="width: 427rpx;height: 128rpx;" src="/assets/home_emptytext.png" />
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import api from '@/api/api'
+  import wxModal from '@/utils/wxModal'
+  import shareJump from '@/utils/shareJump'
+  import singIntroduct from '@/components/singIntroduct'
+  import networkToast from '@/components/networkToast'
+  import palletMask from '@/components/Add2PalletMask'
+  export default class index extends wepy.page {
+    config = {
+      navigationBarTitleText: ''
+    };
+    data = {
+      HomeData: '',
+      showToast: false,
+      loginType: '',
+      showAddMyMinParagram: false,
+      showGroup: false,
+      showSingIntroduct: false,
+      globalShowAddTips: null,
+      showVersion: '',
+      showVersionMsg: `· 想唱界面点击顺序播放后,切换到微信和后台会继续播放,练歌更轻松 
+      · 唱歌时唱词变成滚动方式,再也不会晃眼睛`,
+      showVersionTime: `v1.2.4版本，2019.2.22日发布 ♪(^∇^*)`
+  
+    };
+    components = {
+      singIntroduct,
+      networkToast,
+      palletMask
+    };
+    methods = {
+      showVersion() {
+        this.showVersion = false
+        this.$apply()
+      },
+      toSongListRank(item) {
+        wepy.navigateTo({
+          url: `/pages/rank/songListRank?sheetId=${item.id}`
+        })
+      },
+      showList(item) {
+        this.$parent.event.emit('stopSubPagePlayer')
+        wepy.navigateTo({
+          url: `/pages/musicList?sheetName=${item.name}&sheetId=${item.id}`
+        })
+      },
+      isShowToast() {
+        this.showToast = !this.showToast
+      },
+      toSurvey() {
+        wepy.navigateTo({
+          url: '/pages/subHome/hansel'
+        })
+      }
+      /*
+      toHansel() {
+         wepy.navigateTo({ url: '/pages/survey' }) 跳转web页面
+        wepy.navigateTo({
+          url: '/pages/subHome/hansel'
+        })
+      }
+      */
+    };
+    events = {
+      showSingIntroduct(t) {
+        this.showSingIntroduct = t
+        this.$apply()
+      },
+      dimissMinParagramTips() {
+        this.globalShowAddTips = false
+        wepy.setStorageSync('globalShowAddTips', false)
+        this.$apply()
+      }
+    };
+    watch = {
+      loginType(newValue, oldValue) {
+        if (newValue === 1) {
+          if (wepy.getStorageSync('showVersion') !== true) {
+            this.showVersion = true
+            wepy.setStorageSync('showVersion', true)
+          }
+        }
+      }
+    };
+    computed = {};
+    async homeData() {
+      let res = null
+      res = await api.musicList()
+      this.HomeData = res.sheetList
+      this.$apply()
+    }
+    accessTime() {
+      let accessTime = new Date()
+      wepy.setStorageSync('currentData', accessTime.getDate())
+      wepy.setStorageSync('visit', -1)
+    };
+    async onLoad(option) {
+      wepy.setStorageSync('shareUid', option.uid)
+      wepy.setStorageSync('chanel', option.channel)
+      if (option.shareType && option.shareId) {
+        wepy.setStorageSync('shareType', option.shareType)
+        wepy.setStorageSync('shareId', option.shareId)
+      }
+      this.loginType = wepy.getStorageSync('loginType')
+      const checkVersion = await api.checkVersion({
+        query: {
+          // version: '0.0.0'
+          version: '2.0.0'
+        }
+      })
+      if (checkVersion.code === 0) {
+        this.showGroup = checkVersion.show
+        wepy.setStorageSync('showGroup', this.showGroup)
+        this.$apply()
+      }
+      if (this.loginType === 1) {
+        const showAddMyMinParagram = wepy.getStorageSync('showAddMyMinParagram')
+        if (option.shareUid) {
+          const param = {
+            query: {
+              toId: option.shareUid
+            }
+          }
+          await api.followEachOther(param)
+          wepy.removeStorageSync('shareUid')
+        }
+        if (!showAddMyMinParagram) {
+          let that = this
+          setTimeout(() => {
+            that.showAddMyMinParagram = true
+            wepy.setStorageSync('showAddMyMinParagram', true)
+            that.$apply()
+          }, 3000)
+        }
+      } else {
+        wx.hideTabBar({
+          // animation: true 动画效果
+        })
+      }
+      this.homeData()
+      this.fetchShareInfo()
+      this.accessTime()
+      const shareType = wepy.getStorageSync('shareType')
+      const shareId = wepy.getStorageSync('shareId')
+      if (shareId && shareType && this.loginType) {
+        shareJump.redirect2flooringPage()
+      }
+      console.log(shareType, shareId)
+      this.$apply()
+    };
+    onShareAppMessage(res) {
+      var inviteFriend = this.$parent.globalData.shareInfo.inviteFriend
+      return {
+        title: inviteFriend.text,
+        path: '/pages/index?uid=' + wepy.getStorageSync('userId'),
+        imageUrl: inviteFriend.shareImg,
+        success: function(res) {}
+      }
+    };
+    onShow() {
+      if (this.loginType === 1) {
+        if (this.globalShowAddTips === null) {
+          this.globalShowAddTips = wepy.getStorageSync('globalShowAddTips')
+          if (this.globalShowAddTips === '') {
+            wepy.setStorageSync('globalShowAddTips', true)
+          }
+        }
+        this.fetchUnreadMessage()
+      }
+    };
+    async fetchUnreadMessage() {
+      // const msgCount = await im.getUnreadMsgCount()
+      const res = await api.fetchUnreadMessage()
+      if (res.code === 0) {
+        const {
+          followNum,
+          pointNum
+        } = res
+        this.redNum = followNum + pointNum
+        wepy.setStorageSync('followNum', followNum)
+        wepy.setStorageSync('pointNum', pointNum)
+        this.tabBarBadgeChangeAction(this.redNum)
+        this.$apply()
+      }
+    }
+    tabBarBadgeChangeAction(opt) {
+      if (opt > 0 && opt <= 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${opt}`
+        })
+      } else if (opt > 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${'99+'}`
+        })
+      } else {
+        wx.removeTabBarBadge({
+          index: 3
+        })
+      }
+    }
+    async fetchShareInfo() {
+      this.$parent.globalData.shareInfo = await api.fetchShareInfo()
+    }
+    async onGotUserInfo(user) {
+      wxModal.loading('')
+      const {
+        userInfo,
+        encryptedData,
+        iv
+      } = user.detail
+      if (userInfo == null) {
+        wxModal.error('请先授权哦')
+        return
+      }
+      this.$parent.globalData.userInfo = userInfo
+      wepy.setStorageSync('avatar', userInfo.avatarUrl)
+      if (userInfo && (!this.loginType || this.loginType === 0)) {
+        const updataProfileInfo = await api.updateProfileInfo({
+          method: 'POST',
+          query: {
+            nickname: userInfo.nickName,
+            gender: userInfo.gender,
+            headImg: userInfo.avatarUrl,
+            encryptedData: encryptedData,
+            iv: iv
+          }
+        })
+        if (updataProfileInfo.code === 0) {
+          wepy.setStorageSync('loginType', 1)
+          wepy.setStorageSync('userInfo', 1)
+          wepy.setStorageSync('nickname', userInfo.nickName)
+          wx.showTabBar({
+            animation: true
+          })
+          let shareUid = wepy.getStorageSync('shareUid')
+          if (shareUid) {
+            const param = {
+              query: {
+                toId: shareUid
+              }
+            }
+            await api.followEachOther(param)
+            wepy.removeStorageSync('shareUid')
+          }
+          const shareType = wepy.getStorageSync('shareType')
+          const shareId = wepy.getStorageSync('shareId')
+          if (shareId && shareType) {
+            // this.onBackgroundTap()
+            shareJump.redirect2flooringPage()
+          }
+        } else {
+          wxModal.error('授权失败!')
+        }
+      }
+      if (this.tipText) {
+        setTimeout(() => {
+          this.tipText = ''
+          this.$apply()
+        }, 3000)
+      }
+      wxModal.loaded()
+      this.loginType = wepy.getStorageSync('loginType')
+      wepy.setStorageSync('showAddMyMinParagram', false)
+      this.$apply()
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    justify-content: flex-start;
+    min-height: 100vh;
+    flex-flow: column;
+  }
+  .nav_box {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: row;
+    width: 100vw;
+    height: 60rpx;
+    margin-top: 60rpx;
+    z-index: 1;
+  }
+  .music_top_tips {
+    margin-left: 44rpx;
+    font-family: PingFangSC-Semibold;
+    font-size: 44rpx;
+    color: #FFFFFF;
+    font-weight: bold;
+  }
+  .tips_icon {
+    width: 46rpx;
+    height: 46rpx;
+    margin-left: 24rpx;
+    z-index: 1;
+  }
+  .music_item {
+    width: 316rpx;
+    height: 316rpx;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-direction: column;
+    background-color: rgb(59, 8, 8);
+    margin-bottom: 30rpx;
+    position: relative;
+    border-radius: 28rpx;
+  }
+  .music_box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 44rpx;
+    z-index: 3;
+  }
+  .music_image {
+    width: 674rpx;
+    height: 98rpx;
+  }
+  .music_image_box {
+    width: 674rpx;
+    height: 98rpx;
+    margin: 0 auto;
+    z-index: 3;
+  }
+  .music_action {
+    position: absolute;
+    bottom: 0;
+    width: 316rpx;
+    height: 66rpx;
+    line-height: 66rpx;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.70);
+    z-index: 3;
+    font-family: PingFangSC-Medium;
+    font-size: 30rpx;
+    font-weight: bold;
+    color: #FFDC51;
+  }
+  .music_bg {
+    position: absolute;
+    width: 316rpx;
+    height: 316rpx;
+    z-index: 1;
+    border-radius: 28rpx;
+  }
+  .music_mask {
+    position: absolute;
+    width: 316rpx;
+    height: 316rpx;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.36)
+  }
+  .music_name {
+    font-family: PingFangSC-Semibold;
+    font-size: 44rpx;
+    color: #FFFFFF;
+    z-index: 3;
+    margin-top: 74rpx;
+  }
+  .music_like_count {
+    font-family: PingFangSC-Regular;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    z-index: 3;
+  }
+  .musci_line {
+    width: 100rpx;
+    height: 10rpx;
+    background-color: #fff;
+    z-index: 3;
+    margin-bottom: 10rpx;
+    margin-top: 10rpx;
+  }
+  .bottom_box {
+    z-index: 5;
+  }
+  .bottom_tip {
+    font-family: PingFangSC-Regular;
+    font-size: 26rpx;
+    color: #979797;
+    text-align: center;
+  }
+  .hansel {
+    width: 182rpx;
+    height: 106rpx;
+    position: fixed;
+    top: 1048rpx;
+    right: 0;
+    z-index: 5;
+  }
+  .hansel>view{
+    position: relative;
+  }
+  .hansel>view>image {
+    width: 182rpx;
+    height: 106rpx;
+  }
+  .hansel>view>view {
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFE46C;
+    position: absolute;
+    top: 28%;
+    right: 5%;
+  }
+  .show_toast {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 99;
+    background: rgba(0, 0, 0, 0.47);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .show_toast_box {
+    width: 554rpx;
+    height: 530rpx;
+    background: #FFFFFF;
+    border-radius: 20rpx;
+    display: flex;
+    align-items: center;
+    flex-flow: column;
+  }
+  .show_toast_box>:first-child {
+    font-weight: bold;
+    width: 310rpx;
+    height: 42rpx;
+    line-height: 42rpx;
+    margin: 50rpx 0 30rpx 0;
+    font-family: PingFangSC-Medium;
+    font-size: 36rpx;
+    color: #303030;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 20px;
+  }
+  .show_toast_box>:nth-child(2) {
+    width: 476rpx;
+    line-height: 88rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 23px;
+    text-align: left;
+  }
+  .show_toast_box>:nth-child(3) {
+    width: 476rpx;
+    height: 44rpx;
+    line-height: 44rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 24rpx;
+    color: #979797;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 23px;
+    text-align: left;
+    margin-bottom: 38rpx;
+  }
+  .show_toast_box>:last-child {
+    width: 468rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    background: #FFDC51;
+    border-radius: 44rpx;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: -0.41px;
+    text-align: center;
+  }
+  .login_button {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    z-index: 10;
+    border: 1px solid transparent;
+    background-color: transparent;
+  }
+  .default_clolor {
+    background: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>

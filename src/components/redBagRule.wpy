@@ -1,0 +1,104 @@
+<!--  -->
+<template>
+  <view class='containerss' wx:if='{{dismiss}}'>
+      <view class='rg_bg'>
+          <view class='title'>发红包啦！</view>
+          <view class='content'>1. 获取官方二维码，加入我们音遇好声音微信群。</view>
+           <view class='content'>2. 运营小姐姐会在<text class='red'>2.4号晚上19:00点</text>，为我们可爱的用户发红包哦（领唱者有大红包）。</view>
+            <view class='content'>3. 总计<text class='red'>20波+</text>（总额不低于<text class='red'>888元</text>哦）。</view>
+             <view class='content'>4. 你可以邀请2个爱唱歌的朋友入群一起抢红包啦！!😄</view>
+             <view class='quit_button' @tap.stop='dismiss'>朕知道了，退下</view>
+      </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+export default class redBagRule extends wepy.component {
+    props = {
+    };
+
+    data = {
+      dismiss: false
+    };
+
+    components = {};
+
+    methods = {
+      dismiss() {
+        this.dismiss = !this.dismiss
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() { };
+
+    onShow() { };
+    show() {
+      this.dismiss = !this.dismiss
+      this.$apply()
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+.containerss {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.74);
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99999;
+    right: 0;
+}
+.rg_bg {
+    width: 554rpx;
+    height: 667rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+.title {
+    font-family: PingFangSC-Medium;
+    font-size: 34rpx;
+    color: #303030;
+    line-height: 40rpx;
+    margin-top: 40rpx;
+}
+.content {
+    font-family: PingFangSC-Regular;
+font-size: 28rpx;
+color: #303030;
+letter-spacing: 0;
+line-height: 40rpx;
+width: 490rpx;
+margin-top: 20rpx;
+}
+.red {
+    color: #FE405D ;
+}
+.quit_button {
+    width: 468rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    background: #FFDC51;
+    border-radius: 44rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: -0.41px;
+    text-align: center;
+    margin-top: 30rpx;
+}
+</style>

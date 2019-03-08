@@ -1,0 +1,493 @@
+<!--  -->
+<template>
+    <repeat for="{{rankingLists}}" key="index" index="index" item="item">
+        <block wx:if="{{!item.advert}}">
+            <view class='containers'>
+                <view class="leading_singer_box">
+                    <view class="box_top" @tap="tosongRank({{item}})">
+                        <view class="top_title" >{{item.musicName}}</view>
+                        <view class="image">
+                            <view>
+                                <repeat for="{{item.headImgs}}" key="index" index="index" item="item">
+                                    <image src="{{item}}"  lazy-load="true" class="image_one" mode="aspectFill" style="right:{{index*42}}rpx;"></image>
+                                </repeat>
+                            </view>
+                            <view class="top_msg">{{ item.challengeNum === null ? 0:item.challengeNum }}人挑战过</view>
+                        </view>
+                    </view>
+                    <view class="box_center">
+                        <view class='box_center_one'>
+                            <view class="box_center_title">{{item.nickName}}</view>
+                            <view class="box_center_medal" wx:if="{{item.leveName}}">{{item.leveName}} {{item.userLevel}}</view>
+                            <view class="center_medal" wx:if="{{item.medalName}}">{{item.medalName}}</view>
+                        </view>
+                        <view class='box_center_two'>
+                            <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true" @tap.stop='showOtherInfo({{item}})'></image>
+                            <view class="box_center_add" wx:if="{{!item.follow }}" @tap="followAction({{index}})">+</view>
+                            <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                                <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}" ></image>
+                                <text>{{item.time}}'</text>
+                            </view>
+                            <image class="else_img" src="{{(index === cindex)? '/assets/list_voice.gif':'/assets/lead_voice_normal.png'}}" mode="aspectFill" lazy-load="true"></image>
+                        </view>
+                    </view>
+                    <view class="box_bottom">
+                        <view wx:if="{{ item.sheetName != null }}">
+                            <image class="else_imgs" src="/assets/topic_icon.png" mode="aspectFill" lazy-load="true"></image>
+                            <text @tap="toSongListRank({{item}})">{{item.sheetName}}</text>
+                        </view>
+                        <view class="box_bottom_right">
+                            <view>{{ (item.pickNum == null) ? 0 :item.pickNum}}人Pick</view>
+                            <image src="{{ item.pick ? '/assets/lead_pick_clicked.png' : '/assets/lead_pick_normal.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="Pick({{item}},{{index}})"></image>
+                        </view>
+                    </view>
+                </view>
+            </view>
+        </block>
+        <block wx:elif='{{item.advert}}'>
+            <view class="me_lead_singer" @tap.stop="toChallenge({{item}})">
+                <image src="/assets/lead_card_bg.png" mode="aspectFill" lazy-load="true" class="back_img"> </image>
+                <view class="me_lead_singer_msg">
+                    <view class="box_top two">
+                        <view class="top_title">{{item.musicName}}</view>
+                        <view class="top_sheetName" wx:if="{{item.sheetName}}" @tap="toSongListRank({{item}})">
+                            <image class="else_imgs" src="/assets/topic_icon_b.png" mode="aspectFill" lazy-load="true"></image>
+                            <text >{{item.sheetName}}</text>
+                        </view>
+                    </view>
+                    <view class="box_bottom_two">
+                        <image src="/assets/lead_sing_black.png" mode="aspectFill" lazy-load="true"></image>
+                        <view>我来领唱</view>
+                    </view>
+                </view>
+            </view>
+        </block>
+    </repeat>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import api from '@/api/api'
+    import AudioInnerPlayer from '@/utils/audioPlayer'
+    let player = new AudioInnerPlayer()
+    export default class rankingList extends wepy.component {
+      props = {
+        rankingLists: {
+          type: Array,
+          default: []
+        }
+      };
+      data = {
+        playing: false,
+        cindex: '',
+        pick: '',
+        uid: ''
+      };
+      components = {};
+      methods = {
+        showOtherInfo(item) {
+          const uid = item.userId
+          const userId = wepy.getStorageSync('userId')
+          if (uid !== userId) {
+            wepy.navigateTo({url: `/pages/userInfo/others?userId=${item.userId}`})
+          } else {
+            console.log('自己不能跳转自己')
+          }
+        },
+        async followAction(index) {
+          let item = this.rankingLists[index]
+          const res = await api.followUser({
+            id: item.userId
+          })
+          if (res.code === 0) {
+            wepy.showToast({
+              title: '关注成功',
+              icon: 'none',
+              duration: 2000,
+              mask: true
+            })
+            item.follow = true
+          }
+          this.$apply()
+        },
+        toChallenge(item) {
+          wepy.navigateTo({
+            url: `/pages/subHome/challenge?ideaId=${item.ideaId}`
+          })
+        },
+        Pick(item, index) {
+          const isPick = this.rankingLists[index]
+          const picknum = this.rankingLists[index]
+          if (!isPick.pick) {
+            isPick.pick = true
+            picknum.pickNum++
+            api.clickPick({
+              query: {
+                challengeId: item.challengeId,
+                ideaId: item.ideaId
+              }
+            })
+          } else {
+            api.clickPick({
+              query: {
+                challengeId: item.challengeId,
+                ideaId: item.ideaId
+              }
+            })
+          }
+          this.$apply()
+        },
+    
+        playMusic(item, index) {
+    //   wepy.$instance.globalData.audioManager.pause()
+          wepy.$instance.event.emit('stopSubPagePlayer')
+          wepy.$instance.event.emit('onBackgroundTap')
+          player.stop()
+          if (!this.playing) {
+            player.play(item.songUrl)
+            this.playing = true
+            this.cindex = index
+            api.addlog({
+              query: {
+                challengeId: item.challengeId
+              }
+            })
+          } else {
+            if (this.cindex !== index) {
+              player.play(item.songUrl)
+              this.playing = true
+              this.cindex = index
+            } else {
+              player.pause()
+              this.playing = false
+              this.cindex = -1
+            }
+          }
+          console.log(player.isPlaying())
+          this.$apply()
+        },
+        tosongRank(item) {
+          wepy.navigateTo({
+            url: `/pages/rank/songRank?ideaId=${item.ideaId}`
+          })
+        },
+        toSongListRank(item) {
+          wepy.navigateTo({
+            url: `/pages/rank/songListRank?sheetId=${item.sheetId}`
+          })
+        }
+      };
+      events = {
+      };
+      playerstop() {
+        this.isPlay = false
+        this.cindex = -1
+        player.stop()
+        this.$apply()
+      };
+      watch = {};
+      computed = {};
+      onLoad() {
+        this.uid = wepy.getStorageSync('userId')
+        console.log(this.uid)
+        wepy.$instance.event.offEvent('leadingSinger')
+        wepy.$instance.event.subscribeOn(
+      'leadingSinger',
+      this.playAudioComplete.bind(this))
+        this.$apply()
+  };
+      playAudioComplete() {
+        this.cindex = -1
+        this.$apply()
+      };
+      onHide() {
+    
+      }
+      onShow() {};
+}
+    
+</script>
+
+<style lang="less" scoped>
+    .containers {
+        height: 370rpx;
+        padding-bottom: 32rpx;
+        background: #000000;
+    }
+    .leading_singer_box {
+        width: 670rpx;
+        height: 370rpx;
+        background: #FFFFFF;
+        box-shadow: 0 8rpx 0 0 #424242;
+        border-radius: 20rpx;
+    }
+    .box_top {
+        display: flex;
+        flex-flow: row wrap;
+        justify-content: space-between;
+        align-items: center;
+        height: 88rpx;
+        width: 670rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .top_title {
+        width: 300rpx;
+        margin-left: 32rpx;
+        height: 40rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .top_msg {
+        text-align: right;
+        margin-right: 24rpx;
+        width: 100%;
+        height: 34rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-left: 16rpx;
+        position: absolute;
+        right: 0rpx;
+    }
+    .image>:first-child{
+        display: flex;
+        height: 100%;
+        width: 150rpx;
+        position: relative;
+        align-items: center;
+
+    }
+    .image>view>image {
+        width: 48rpx;
+        height: 48rpx;
+        border-radius: 50%;
+    }
+    .image>.image_two {
+        position: absolute;
+        left: 38rpx;
+        background: #73CFE5;
+    }
+    .image>.image_three {
+        position: absolute;
+        left: 76rpx;
+        background: #FF4174;
+    }
+    .image {
+        width: 300rpx;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        position: relative;
+       
+    }
+    .image_one {
+        position: absolute;
+    }
+    .box_center {
+        display: flex;
+        flex-flow: row wrap;
+        height: 192rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .box_center_one {
+        margin-top: 18rpx;
+        height: 46rpx;
+        margin-left: 32rpx;
+        display: flex;
+        flex-flow: row nowrap;
+    }
+    .box_center_title {
+        font-family: PingFangSC-Medium;
+        font-size: 32rpx;
+        font-weight: bold;
+        color: #303030;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .box_center_medal {
+        width: 186rpx;
+        background: #73CFE5;
+        border-radius: 70rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 46rpx;
+        margin-left: 28rpx;
+    }
+    .center_medal {
+        padding:0  20rpx 0 20rpx; 
+        background: #FF4174;
+        border-radius: 70rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 46rpx;
+        margin-left: 20rpx;
+    }
+    .box_center_two {
+        width: 100%;
+        height: 94rpx;
+        margin-top: 16rpx;
+        position: relative;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+    }
+    .box_center_two>.user_img {
+        position: absolute;
+        width: 80rpx;
+        height: 80rpx;
+        border-radius: 50%;
+        margin-left: 32rpx;
+        z-index: 1;
+        border: 4rpx solid #000000;
+    }
+    .box_center_add {
+        width: 44rpx;
+        height: 44rpx;
+        background: #FF4174;
+        border-radius: 50%;
+        border: 4rpx solid #000000;
+        position: absolute;
+        top: 55rpx;
+        left: 48rpx;
+        z-index: 2;
+        font-size: 48rpx;
+        color: #fff;
+        text-align: center;
+        line-height: 40rpx;
+    }
+    .box_center_play {
+        position: absolute;
+        left: 54rpx;
+        width: 270rpx;
+        height: 64rpx;
+        background: #FFFFFF;
+        border: 4rpx solid #303030;
+        border-bottom-right-radius: 50rpx;
+        border-top-right-radius: 50rpx;
+    }
+    .box_center_play>image {
+        position: absolute;
+        left: 84rpx;
+        top: 16rpx;
+        width: 30rpx;
+        height: 34rpx;
+    }
+    .box_center_play>text {
+        position: absolute;
+        top: 14rpx;
+        left: 134rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+    }
+    .else_img {
+        width: 150rpx;
+        height: 100rpx;
+        position: absolute;
+        right: 28rpx;
+    }
+    .box_bottom>view>.else_imgs {
+
+        width: 28rpx;
+        height: 34rpx;
+        margin-left: 24rpx;
+    }
+    .box_bottom>view>text {
+        font-family: PingFangSC-Medium;
+        font-size: 28rpx;
+        color: #303030;
+        margin-left: 8rpx;
+    }
+    .box_bottom>.box_bottom_right {
+        position: absolute;
+        right: 0;
+        display: flex;
+        align-items: center;
+        flex-flow: row nowrap;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-right: 0;
+    }
+    .box_bottom>.box_bottom_right>image {
+        width: 58rpx;
+        height: 40rpx;
+        margin: 0 34rpx 0 10rpx;
+    }
+    .me_lead_singer {
+        width: 670rpx;
+        height: 176rpx;
+        margin-bottom: 32rpx;
+        position: relative;
+    }
+    .me_lead_singer>.two {
+        border-bottom: 2rpx solid #FFE87F;
+    }
+    .box_top>view>.else_imgs {
+        width: 28rpx;
+        height: 34rpx;
+        margin-right: 18rpx;
+    }
+    .top_sheetName {
+        height: 54rpx;
+        margin-right: 24rpx;
+        display: flex;
+        align-items: center;
+        font-family: PingFangSC-Medium;
+        font-size: 28rpx;
+        color: #303030;
+    }
+    .box_bottom {
+        height: 88rpx;
+        position: relative;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .box_bottom>view {
+        display: flex;
+        align-items: center;
+    }
+    .box_bottom_two>image {
+        width: 52rpx;
+        height: 52rpx;
+        margin-right: 16rpx;
+    }
+    .box_bottom_two>view {
+        font-family: PingFangSC-Medium;
+        font-size: 28rpx;
+        color: #303030;
+        display: flex;
+        align-items: center; //font-weight: bold;
+    }
+    .box_bottom_two {
+        height: 88rpx;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        justify-content: center;
+    }
+    .back_img {
+        width: 670rpx;
+        height: 176rpx;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    .me_lead_singer_msg{
+        position: absolute;
+        z-index: 100;
+    }
+</style>

@@ -1,0 +1,117 @@
+<!-- 导航栏 -->
+<template>
+  <view class='nav' style='height:{{navH}}px;background-color:{{bgColor}}'>
+    <view class='nav-title'>
+      <!--  -->    
+      <view class='nav_left' @tap='navBack'>
+      <image src='../assets/arr_l.png' mode='aspectFit' class='back'  />
+        <view class='title'>{{title}}</view>
+      </view>
+    </view>
+
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  export default class Example extends wepy.component {
+    props = {
+      title: {
+        type: String,
+        default: ''
+      },
+      navH: {
+        type: Number,
+        default: 0
+      },
+      bgColor: {
+        type: String,
+        default: '#000000'
+      }
+
+    };
+    data = {
+      // isPlaying: true
+    };
+    components = {};
+    methods = {
+      navBack() {
+        this.$emit('back2TopPage')
+      }
+    };
+    events = {};
+    watch = {};
+    computed = {};
+    onLoad() {
+    };
+    onShow() {};
+}
+</script>
+
+<style lang="less" scoped>
+  .nav {
+    width: 100%;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+  }
+  .nav-title {
+    width: 100%;
+    height: 90rpx;
+ 
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    // font-family: PingFang-SC-Medium;
+    // font-size: 36rpx;
+    // letter-spacing: 4rpx;
+    color: #fff;
+
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .nav_left {
+     display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .title {
+    font-family: PingFang-SC-Medium;
+    font-size: 36rpx;
+    letter-spacing: 4rpx;
+    color: #fff;    
+    height: 90rpx;
+    line-height: 90rpx;
+    // text-align: center;
+  }
+  .nav_left {
+    width: 550rpx;
+     height: 90rpx;
+  }
+  .back {
+    width: 20rpx;
+    height: 34rpx;
+    z-index: 100;
+    padding: 20rpx 30rpx;
+  }  
+  .overflow {
+    overflow: auto;
+  }
+  .hidden {
+    overflow: hidden;
+  }
+  .soogif {
+    width: 30rpx;
+    height: 30rpx;
+    margin-left: 46rpx;
+    padding: 20rpx 30rpx;
+  }
+  .gif_box {
+    display: flex;
+    flex-direction: row;
+  }
+</style>

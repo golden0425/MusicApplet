@@ -1,0 +1,137 @@
+<!--  -->
+<template>
+    <view class='music_nav_box'>       
+        <view class='music_nav' @tap='click({{0}})'>
+            <view class="{{ currentIndex === 0 ? 'music_nav_highlight_tips' : 'music_nav_tips' }}">本周领唱</view>
+            <!-- <view class="{{ currentIndex === 0 ? 'music_nav_highlight_content' : 'music_nav_content'}}">{{likeMusicCount}}</view> -->
+            <view class='music_nav_indicator' wx:if='{{currentIndex === 0}}'></view>
+        </view>
+        <view class='music_nav' @tap='click({{1}})'>
+            <view class="{{ currentIndex === 1 ? 'music_nav_highlight_tips' : 'music_nav_tips' }}">历史领唱</view>
+            <!-- <view class="{{ currentIndex === 1 ? 'music_nav_highlight_content' : 'music_nav_content'}}">{{singMusicCount}}</view> -->
+            <view class='music_nav_indicator'  wx:if='{{currentIndex === 1}}'></view>
+        </view>
+        <view class='music_nav' @tap='click({{2}})'>
+            <view class="{{ currentIndex === 2 ? 'music_nav_highlight_tips' : 'music_nav_tips' }}">
+              待审核
+              <view class='challenge_audit_num' wx:if='{{auditNum}}'>{{auditNum}}</view>
+              </view>
+            <!-- <view class="{{ currentIndex === 2 ? 'music_nav_highlight_content' : 'music_nav_content'}}">{{scanMusicCount}}</view> -->
+              <view class='music_nav_indicator'  wx:if='{{currentIndex === 2}}'></view>
+        </view> 
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    export default class Example extends wepy.component {
+      props = {
+        currentIndex: {
+          type: Number,
+          default: 0
+        },
+        auditNum: {
+          type: Number,
+          default: 0
+        },
+        likeMusicCount: {
+          type: Number,
+          default: 0
+        },
+        singMusicCount: {
+          type: Number,
+          default: 0
+        },
+        scanMusicCount: {
+          type: Number,
+          default: 0
+        },
+        tips: {
+          type: String,
+          default: '我'
+        }
+      };
+      data = {
+        currentIndex: 0
+      };
+      components = {};
+      methods = {
+        click(index) {
+          this.currentIndex = index
+          this.$emit('musicItemSelected', index)
+        }
+      };
+      events = {};
+      watch = {};
+      computed = {};
+      onLoad() {};
+      onShow() {};
+    }
+</script>
+
+<style lang="less" scoped>
+    .music_nav_box {
+        margin-bottom:28rpx; 
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        width: 710rpx;
+        height: 64rpx;
+        margin-left:40rpx; 
+        .music_nav {
+            margin-right:100rpx; 
+            width: 112rpx;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            font-family: PingFangSC-Regular;
+            font-size: 14px;
+            color: #FFFFFF;
+            position: relative;
+            .music_nav_highlight_tips {
+                font-family: PingFangSC-Medium;
+                font-size: 28rpx;
+                color: #FFFFFF;
+            }
+             .music_nav_tips {
+                font-family: PingFangSC-Medium;
+                font-size: 28rpx;
+                color: #E6E6E6;
+            }
+            .music_nav_content {
+                font-family: PingFangSC-Medium;
+                font-size: 18px;
+                color: #E6E6E6;
+                margin-left: 14rpx;
+            }
+              .music_nav_highlight_content {
+                font-family: PingFangSC-Medium;
+                font-size: 18px;
+                color: #FFFFFF;
+                margin-left: 14rpx;
+            }
+            .music_nav_indicator {
+                position: absolute;
+                top: 50rpx;
+                left:0 ;
+                width: 48rpx;
+                height: 6rpx;
+                background-color: #ffdc51;
+                border-radius: 4rpx;
+            }
+            .challenge_audit_num{
+              position: absolute;
+              text-align: center;
+              font-size: 24rpx;
+              top: -6rpx;
+              right: -6rpx;
+              height: 34rpx;
+              width:34rpx;
+              border-radius: 50%;
+              background-color: red;
+              
+            }
+        }
+    }
+</style>

@@ -1,0 +1,116 @@
+<!--  -->
+<template>
+  <view class='containers' wx:if='{{!dismiss}}'>
+      <view class='rg_bg'>
+          <view class='title'>什么是「领唱」</view>
+          <view class='content' style='margin-top:40rpx;'>你可以通过领唱成为本期的上榜明星~</view>
+           <view class='content'>每首歌的期榜单<text class='red'>  No.1</text>的歌手将会展示</view>
+           <view class='content' style='margin-top:8rpx;'>在<text class='red'>领唱位</text>，收获更多人比心💗💗💗</view>
+
+            <view class='content'>还可以Pick喜欢的歌手，为其助力！</view>
+             <view class='content'>To be who u wanna be~</view>
+             <view class='tips'>* Pick值于每周日24点清零</view>
+             <view class='quit_button' @tap.stop='dismiss'>朕知道了，退下</view>
+      </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+export default class oldRanking extends wepy.component {
+    props = {
+    };
+
+    data = {
+      dismiss: true
+    };
+
+    components = {};
+
+    methods = {
+      dismiss() {
+        this.dismiss = true
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() { };
+
+    onShow() { };
+    show() {
+      this.dismiss = false
+      this.$apply()
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+.containers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.74);
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    z-index: 100;
+    right: 0;
+}
+.rg_bg {
+    width: 554rpx;
+    height: 650rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+.title {
+    font-family: PingFangSC-Medium;
+    font-size: 34rpx;
+    color: #303030;
+    line-height: 40rpx;
+    margin-top: 40rpx;
+}
+.content {
+    font-family: PingFangSC-Regular;
+font-size: 28rpx;
+color: #303030;
+letter-spacing: 0;
+line-height: 40rpx;
+width: 490rpx;
+margin-top: 20rpx;
+}
+.red {
+    color: #FE405D ;
+}
+.quit_button {
+    width: 468rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    background: #FFDC51;
+    border-radius: 44rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: -0.41px;
+    text-align: center;
+    margin-top: 30rpx;
+}
+.tips {
+    font-family: PingFangSC-Regular;
+font-size: 24rpx;
+color: #979797;
+letter-spacing: 0;
+line-height: 46rpx;
+width: 490rpx;
+margin-top: 40rpx;
+}
+</style>

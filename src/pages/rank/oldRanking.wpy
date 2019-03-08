@@ -1,0 +1,532 @@
+  <!-- 歌曲榜单 -->
+<template>
+    <view class='containers'>
+         <nav :navH.sync='navH' :title.sync='title'></nav>
+         <view class="music_name" style='margin-top:{{navH + 90}}rpx;' >{{musicName}}</view>
+        <view class='song_tips' >上周{{challengeTotal}}人参与挑战，{{challengeSuc}}人成功</view>
+        <!-- tips -->
+        <repeat for="{{rankingLists}}" key="index" index="index" item="item">
+            <view  class="box">
+                <view class="rank_box">
+                    <view class="leading_singer_box">
+                        <view class="box_top">
+                            <view class="top_title">No.{{item.ranking}}</view>
+                        </view>
+                        <view class="box_center">
+                            <view class='box_center_one'>
+                                <view class="box_center_title">{{item.nickName}}</view>
+                                <view class="box_center_medal" wx:if="{{item.levelName}}">{{item.levelName}} {{item.userLevel}}</view>
+                                <view class="center_medal" wx:if="{{item.medalName}}">{{item.medalName}}</view>
+                            </view>
+                            <view class='box_center_two'>
+                                <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true"></image>
+                                <view class="box_center_add"  wx:if="{{ !item.follow}}" @tap="followAction({{item}})">+</view>
+                                <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                                    <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}" ></image>
+                                    <text>{{item.time}}'</text>
+                                </view>
+                                <image class="else_img" src="{{(index === cindex)? '/assets/list_voice.gif':'/assets/lead_voice_normal.png'}}" mode="aspectFill" lazy-load="true"></image>
+                            </view>
+                        </view>
+                        <view class="box_bottom">
+                            <view >
+                                <image class="else_imgs" src="/assets/lead_share.png" mode="aspectFill" lazy-load="true"></image>
+                               <button size="defult" type="defult" open-type="share" data-item='{{item}}' class="share"></button>
+                                <text>分享</text>
+                            </view>
+                            <view class="box_bottom_right">
+                                <image src="{{ item.love ? '../../assets/leadprofile_like_clicked.png':'../../assets/leadprofile_like_normal_red.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="Love({{item}},{{index}})"></image>
+                                <view>{{ (item.loveNum === null) ? 0 :item.loveNum}}人喜欢我</view> 
+                            </view>
+                        </view>
+                    </view>
+                </view>
+            </view>
+          </repeat>
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import homePractice from '@/components/homePractice'
+    import api from '@/api/api'
+    import nav from '@/components/nav'
+    import PaginationModel from '@/models/paginationModel'
+    import AudioInnerPlayer from '@/utils/audioPlayer'
+    let player = new AudioInnerPlayer()
+    const pageMode = new PaginationModel()
+    export default class leadingSinger extends wepy.page {
+      config = {
+        navigationBarTitleText: '',
+        enablePullDownRefresh: true
+      };
+      data = {
+        day: '00',
+        hour: '00',
+        minute: '00',
+        second: '00',
+        title: '',
+        musicName: '',
+        challengeTotal: '',
+        challengeSuc: '',
+        navH: '',
+        rankingLists: [],
+        pageNo: 1,
+        isMore: true,
+        ideaId: '',
+        isPlay: false,
+        cindex: '',
+        uid: ''
+
+      };
+      components = {
+        nav,
+        homePractice
+      };
+      methods = {
+        async followAction(item) {
+          const res = await api.followUser({
+            id: item.challengeId
+          })
+          if (res.code === 0) {
+            wepy.showToast({
+              title: '关注成功',
+              icon: 'none',
+              duration: 2000,
+              mask: true
+            })
+            item.follow = true
+          }
+          this.$apply()
+        },
+        Love(item, index) {
+          const isLove = this.rankingLists[index]
+        // const picknum = this.list[index]
+          if (!isLove.love) {
+            isLove.love = true
+            isLove.loveNum++
+          // picknum.pickNum++
+            api.clickLove({
+              query: {
+                challengeId: item.challengeId,
+                ideaId: this.ideaId
+              }
+            })
+          } else {
+            api.clickLove({
+              query: {
+                challengeId: item.challengeId,
+                ideaId: this.ideaId
+              }
+            })
+          }
+          if (isLove.ranking === 1) {
+            this.$parent.globalData.Lvoe = true
+            this.$parent.globalData.loveNum = this.rankingLists[0].loveNum
+          }
+          this.$apply()
+        },
+        playMusic(item, index) {
+          this.$parent.event.emit('stopSubPagePlayer')
+          this.$parent.event.emit('onBackgroundTap')
+          // this.$parent.globalData.audioManager.pause()
+          player.stop()
+          if (!this.isPlay) {
+            player.play(item.songUrl)
+            this.isPlay = true
+            this.cindex = index
+            api.addlog({
+              query: {
+                challengeId: item.challengeId
+              }
+            })
+          } else {
+            if (this.cindex !== index) {
+              player.play(item.songUrl)
+              this.isPlay = true
+              this.cindex = index
+            } else {
+              player.pause()
+              this.isPlay = false
+              this.cindex = -1
+            }
+          }
+          console.log(player.isPlaying())
+          this.$apply()
+        }
+      };
+      events = {
+        back2TopPage() {
+          console.log('navBack')
+          wepy.navigateBack({
+            delta: 1
+          })
+        }
+      };
+      watch = {};
+      computed = {};
+      async fetchData() {
+        let res = null
+        res = await pageMode.pullToRefresh(api.oldRanking, {
+          ideaId: this.ideaId
+        })
+    
+        this.challengeTotal = res.challengeTotal
+        this.challengeSuc = res.challengeSuc
+        this.musicName = res.musicName
+        this.title = `${res.lastWeekTime}`
+        wepy.stopPullDownRefresh()
+        if (res.code === 0) {
+          this.rankingLists = []
+          if (res.rankList) {
+            this.rankingLists = this.rankingLists.concat(res.rankList)
+          }
+        }
+        this.$apply()
+      };
+      async fecthMoreData() {
+        this.pageNo++
+        let res = null
+        res = await pageMode.more(api.oldRanking, {
+          ideaId: this.ideaId
+        })
+        if (res.code === 0) {
+          if (!pageMode.checkLoadMore(res.rankList)) {
+            this.isMore = false
+          }
+          if (res.rankList.length > 0) {
+            this.rankingLists = this.rankingLists.concat(res.rankList)
+          }
+        }
+        this.$apply()
+      };
+      onPullDownRefresh = async() => {
+        this.fetchData()
+      };
+      onReachBottom = async() => {
+        if (this.isMore) {
+          this.fecthMoreData()
+        }
+      };
+      async onLoad(option) {
+        this.uid = wepy.getStorageSync('userId')
+        this.navH = this.$parent.globalData.navHeight
+        this.ideaId = option.ideaId
+    
+        console.log(this.ideaId)
+        wx.showLoading({
+          title: '加载中...'
+        })
+        await this.fetchData()
+        await wx.hideLoading()
+      };
+      onUnload() {
+        player.stop()
+        this.isPlay = false
+        this.cindex = -1
+        this.$apply()
+        clearInterval(this.timer)
+  };
+      onShow() {};
+    }
+</script>
+<style lang="less" scoped>
+.containers{
+    min-height: 100vh;    
+    background: #000000;
+      display: flex;
+      flex-direction: column;
+}
+.music_name{
+    font-family: PingFangSC-Semibold;
+    font-size: 40rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    margin-left: 40rpx;
+    margin-bottom: 16rpx;
+}
+.box{
+    margin-bottom: 32rpx;
+}
+.leading_singer_box{
+    width: 670rpx;
+    height: 310rpx;
+    background: #FFFFFF;
+    box-shadow: 0 8rpx 0 0 #424242;
+    border-radius: 20rpx;
+    
+}
+.box_top{
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: center;
+    height: 48rpx;
+    width: 670rpx;
+}
+
+.top_title{
+    height: 48rpx;
+    line-height: 48rpx;
+    font-family: PingFangSC-Regular;
+    background: #FFDC51;
+    padding: 0 20rpx 0 20rpx;
+    border-radius: 10px 0 12px 0;
+    font-family: DINCondensed-Bold;
+    font-size: 36rpx;
+    color: #000;
+    letter-spacing: 0;
+}
+.top_msg{
+    text-align: right;
+    margin-right: 24rpx;
+    width: 100%;
+    height: 34rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+    margin-left: 16rpx;
+    position: absolute;
+    right: 0rpx;
+}
+.image>image{
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+}
+.image>.image_two{
+    position: absolute;
+    left: 38rpx;
+    background: #73CFE5;
+}
+.image>.image_three{
+    position: absolute;
+    left: 76rpx;
+    background: #FF4174;
+}
+
+.image{
+    width: 300rpx;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+.image_one{
+    position: absolute;
+}
+.box{
+    margin-left: 40rpx;
+}
+.box_center{
+    display: flex;
+    flex-flow: row wrap;
+    height: 192rpx;
+    border-bottom:  2rpx solid #F5F5F5;
+}
+.box_center_one{
+    margin-top: 18rpx;
+    height: 46rpx;
+    margin-left: 32rpx;
+    display: flex;
+    flex-flow: row nowrap;
+    
+}
+.box_center_title{
+    
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #303030;
+    white-space: nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.box_center_medal{
+   width: 186rpx;
+    background: #73CFE5;
+    border-radius: 18rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 46rpx;
+    margin-left: 28rpx;
+}
+.center_medal{
+    padding:0  20rpx 0 20rpx; 
+    background: #FF4174;
+    border-radius: 18rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;  
+    text-align: center;
+    line-height: 46rpx;
+    margin-left: 20rpx;
+}
+.box_center_two{
+    width: 100%;
+    height: 94rpx;
+    margin-top: 16rpx;
+    position: relative;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+}
+.box_center_two>.user_img{
+    position: absolute;
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 50%;
+    margin-left: 32rpx;
+    z-index: 1;
+    border: 4rpx solid #000000;
+}
+.box_center_add{
+    width: 44rpx;
+    height: 44rpx;
+    background:#FF4174;
+    border-radius:50%;
+    border: 4rpx solid #000000;
+    position: absolute;
+    top: 55rpx;
+    left: 48rpx;
+    z-index: 2;
+    font-size: 48rpx;
+    color: #fff;
+    text-align: center;
+    line-height: 40rpx;
+}
+.box_center_play{
+    position: absolute;
+    left: 54rpx;
+    width: 270rpx;
+    height: 64rpx;
+    background: #FFFFFF;
+    border: 4rpx solid #303030;
+    border-bottom-right-radius: 50rpx;
+    border-top-right-radius: 50rpx;
+}
+.box_center_play>image{
+    position: absolute;
+    left:84rpx;
+    top: 16rpx;
+    width: 30rpx;
+    height: 34rpx;
+}
+.box_center_play>text{
+    position: absolute;
+    top: 14rpx;
+    left: 134rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+}
+.else_img{
+    width: 150rpx;
+    height: 100rpx;
+    position: absolute;
+    right: 28rpx;
+}
+
+.box_bottom>view>.else_imgs{
+    margin-right: 12rpx;
+    width: 40rpx;
+    height: 40rpx;
+    margin-left: 34rpx;
+}
+
+.box_bottom>view>text{
+   ont-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #303030;
+}
+.box_bottom>.box_bottom_right{
+    margin-right: 40rpx;
+    display: flex;
+    align-items: center;
+    flex-flow: row nowrap;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+}
+.box_bottom>.box_bottom_right>image{
+    width: 44rpx;
+    height: 40rpx;
+    margin-top:12rpx;
+    margin: 0 16rpx 0 10rpx;
+}
+
+.me_lead_singer{
+    width: 670rpx;
+    height: 176rpx;
+    border-radius: 20rpx;
+    background: #FFDC51;
+    box-shadow: 0 8rpx 0 0 #424242;
+    margin-bottom: 32rpx;
+}
+.me_lead_singer>.two{
+    border-bottom: 2rpx solid #FFE87F;
+}
+.box_top>view>.else_imgs{
+    width: 34rpx;
+    height: 54rpx;
+    margin-right: 18rpx;
+}
+.top_sheetName{
+    margin-right: 24rpx;
+    display: flex;
+    align-content: center;
+}
+.box_bottom{
+    height: 74rpx;
+    position: relative;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: space-between;
+}
+.box_bottom>view{
+    display: flex;
+    align-items: center;
+}
+ .box_bottom_two>image{
+     width: 52rpx;
+     height:52rpx;
+     margin-right: 16rpx;
+ }
+ .box_bottom_two>view{
+     font-family: PingFangSC-Medium;
+     font-size: 28rpx;
+     color: #303030;
+     display: flex;
+     align-items: center;
+     //font-weight: bold;
+ }
+ .box_bottom_two{
+    height: 88rpx;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: center;
+ }
+ .song_tips {
+     margin-left: 40rpx;
+     color: #fff;
+     font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    
+    margin-bottom: 30rpx;
+ }
+ .practice_box {
+     height: 400rpx;
+ }
+ .share{
+    position: absolute;
+    width: 335rpx;
+    height: 64rpx;
+    opacity: 0;
+  }
+</style>

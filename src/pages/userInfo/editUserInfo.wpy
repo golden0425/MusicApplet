@@ -1,0 +1,640 @@
+<template>
+  <view class='container'>
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <view class='avatar_box' style='margin-top:{{navH + 90}}rpx;' @tap='chooseImage'>
+      <!--头像 -->
+      <view class='title'>头像</view>
+      <view class='avatar_box_right'>
+        <image src="{{user.headImg}}" class='avatar' mode='aspectFill'/>
+        <image src='../../assets/arr_r_grey.png' class='arr_grey' />
+      </view>
+      <view class='line'></view>
+    </view>
+    <!-- 背景 -->
+    <view class="background">
+      <view class='title'>背景</view>
+      <view class='avatar_box_right' @tap='baskImage'>
+        <image src="{{user.bgImg}}" class='avatar' mode='aspectFill'  id="bckimg" />
+        <image src='../../assets/arr_r_grey.png' class='arr_grey' />
+      </view>
+      <view class='line'></view>
+    </view>
+    <!--  昵称-->
+    <view class='nickname_box'>
+      <view class='title'>昵称</view>
+      <view class='age_box'>
+        <input class='input_style' placeholder="请输入昵称" bindinput='bindinput' value='{{user.nickName}}' maxlength='8' placeholder-style="color:#ffffff;font-size:32rpx;" bindconfirm="updateNickNameConfirm" type='text' />
+      </view>
+      <image src='../../assets/arr_r_grey.png' class='arr_grey' />
+      <view class='line'></view>
+    </view>
+    <!--  生日-->
+    <view class='nickname_box'>
+      <view class='title'>生日</view>
+      <picker class='picker' mode="date" value="{{user.birthday ? user.birthday : '1995-5-5'}}" start="1900-09-01" end='{{endDate}}' bindchange="bindDateChange">
+        <view class='subTitle' >{{user.birthday ? user.birthday : '' }}</view>
+      </picker>
+      <image src='../../assets/arr_r_grey.png' class='arr_grey ' />
+      <view class='line'></view>
+    </view>
+    <!--  性别-->
+    <view class='nickname_box'>
+      <view class='title'>性别</view>
+      <view class='sex'>
+        {{user.gender === 0 ? '女' : '男'}}
+      </view>
+      <view class='line'></view>
+    </view>
+      <!-- 勋章切换 -->
+    <view class='nickname_box' @tap="showrMedal">
+      <view class='medal_title'>勋章切换</view>
+        <view style="color:#fff"  class="medal_ms">{{user.medalName ? user.medalName : '点击更换'}}</view>
+      <view class='line'></view>
+    </view>
+    <!-- 简介 -->
+    <view class='intro_box'>
+      <view class='intro_title title'>简介</view>
+      <view class='age_box textarea_style'>
+        <textarea wx:if='{{editIntroing}}' auto-focus class=' input_style'  style='height:112rpx;' placeholder="🙁 + 🎵+ 🎤 = 😀 "  bindinput='bindinput' value='{{user.introduce}}' maxlength='30' placeholder-style="color:#ffffff;font-size:32rpx;" bindconfirm="updateIntroInfoConfirm" type='number' />
+        <view class='input_style' style='height:112rpx;' wx:else @tap.stop='editIntroAction'>{{user.introduce ? user.introduce : "🙁 + 🎵+ 🎤 = 😀 "}}</view>
+      </view>
+      <image src='../../assets/arr_r_grey.png' style='margin-top:62rpx;' class='arr_grey' />
+      <view class='line'></view>
+    </view>
+    
+    <view class="medal_box_one" style=" display: {{ showrMedal ? 'block':'none' }}; "></view>
+      <view  class="medal_box" style="{{ showrMedal ? 'bottom:0rpx':'bottom:-830rpx' }}">
+        <view class="medal_box_top">
+          <image class="close" src="/assets/close_grey.png" mode="aspectFill" lazy-load="false" @tap="showrMedal"></image>
+        </view>
+        <view class="medal_box_center">{{user.gender === 0 ? '小姐姐' : '小哥哥'}}  可以佩戴一个荣誉哦</view>
+        <scroll-view scroll-y >
+          <!-- <repeat for="{{array}}" key="index" index="index" item="item"> -->
+            <view class="medal_box_bottom">
+              <repeat for="{{medalList}}" key="index" index="index" item="item">
+                <view class="bottom_item_box" @tap="celectMedal({{index}},{{item}})">
+                  <image src="{{(medalId===item.id)? '/assets/infoedit_medal_selected.png' :'' }} " mode="aspectFill" lazy-load="false" class="infoedit_medal"></image>
+                  <view class="bottom_item" style="background:{{ item.own ? item.color : '#4F4F4F' }};">{{item.medalName}}</view>
+                </view>
+              </repeat>
+            </view>
+          <!-- </repeat> -->
+        </scroll-view>
+        <view class="medal_msg">{{medalMsg}}</view>
+        <view class="medal_botton" @tap="confirm" style="background:{{ isMedal? '#FFDC51' : '#000'}}">确定</view>
+      </view>
+    
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import nav from '@/components/nav'
+  import api from '@/api/api'
+  import uplaodImageFile from '@/utils/oss/UploadAliyun'
+
+  export default class Example extends wepy.page {
+    config = {
+      navigationBarTitleText: ''
+    };
+    data = {
+      navH: 0,
+      title: '个人中心',
+      endDate: '',
+      uid: null,
+      user: null,
+      input: null,
+      editIntroing: false,
+      showrMedal: false,
+      medalList: '',
+      celectmedal: '',
+      medalMsg: '',
+      isMedal: false,
+      medalId: '',
+      index: -1
+
+    };
+    components = {
+      nav
+    };
+    methods = {
+      editIntroAction() {
+        this.editIntroing = true
+      },
+      chooseImage() {
+        let that = this
+        wx.chooseImage({
+          count: 1,
+          sizeType: ['compressed'],
+          sourceType: ['album', 'camera'],
+          success(res) {
+            const tempFilePaths = res.tempFilePaths
+            const action = 'AvatarUpload'
+            console.log(tempFilePaths)
+            that.uplaod2OSS(tempFilePaths, action)
+          }
+        })
+      },
+      baskImage() {
+        let that = this
+        wx.chooseImage({
+          count: 1,
+          sizeType: ['compressed'],
+          sourceType: ['album'],
+          success(res) {
+            const tempFilePaths = res.tempFilePaths
+            const action = 'BgImgUpload'
+            console.log(tempFilePaths)
+            that.uplaod2OSS(tempFilePaths, action)
+          }
+        })
+      },
+      bindinput(e) {
+        console.log(e.detail.value)
+        this.input = e.detail.value
+      },
+  
+      async showrMedal() {
+        this.editIntroing = false
+        this.showrMedal = !this.showrMedal
+        let index = this.user.medalId
+        this.medalId = `${index}`
+        let res = await api.findMedalList()
+        this.medalList = res.medalList
+        if (index) {
+          this.medalMsg = this.medalList[index].remark
+          this.celectmedal = index
+          this.isMedal = true
+        } else {
+          this.medalMsg = '你还没有获得荣誉哦，快去挑战歌曲吧'
+          this.celectmedal = ''
+        }
+
+        console.log(index)
+        this.$apply()
+      },
+  
+      celectMedal(index, item) {
+        this.medalMsg = item.remark
+        this.celectmedal = index
+        this.medalId = item.id
+        this.isMedal = item.own
+        this.$apply()
+      },
+  
+      async confirm() {
+        let index = this.celectmedal
+        let isMedal = this.medalList[index].own
+        if (isMedal) {
+          this.showrMedal = !this.showrMedal
+          await api.updateProfileInfo({
+            query: {
+              medalId: this.medalId
+            }
+          })
+          await this.fetchUserInfo()
+          await this.updateMetalConfirm()
+        } else {
+          wepy.showToast({
+            title: '你还未获取勋章佩戴哦', // 提示的内容,
+            icon: 'none', // 图标,
+            duration: 2000, // 延迟时间,
+            mask: true // 显示透明蒙层，防止触摸穿透,
+          })
+        }
+  
+        this.$apply()
+      }
+  
+    };
+    events = {
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      }
+    };
+    watch = {};
+    computed = {};
+    async onLoad() {
+      this.navH = this.$parent.globalData.navHeight
+      this.endDate = this.getCurrentDateString()
+      this.uid = wepy.getStorageSync('userId')
+      await this.fetchUserInfo()
+      this.$apply()
+    };
+    onShow() {};
+    getCurrentDateString() {
+      var date = new Date()
+      // 获取当前月份
+      var nowMonth = date.getMonth() + 1
+      // 获取当前是几号
+      var strDate = date.getDate()
+      // 添加分隔符“-”
+      var seperator = '-'
+      // 对月份进行处理，1-9月在前面添加一个“0”
+      if (nowMonth >= 1 && nowMonth <= 9) {
+        nowMonth = '0' + nowMonth
+      }
+      // 对月份进行处理，1-9号在前面添加一个“0”
+      if (strDate >= 0 && strDate <= 9) {
+        strDate = '0' + strDate
+      }
+      var nowDate = date.getFullYear() + seperator + nowMonth + seperator + strDate
+      return nowDate
+    };
+    async bindDateChange(e) {
+      const v = e.detail.value
+  
+      this.user.birthday = v
+      this.$apply()
+      const res = await api.updateProfileInfo({
+        query: {
+          birthday: v
+        }
+      })
+      if (res.code === 0) {
+        wepy.setStorageSync('refreshUserInfo', true)
+        wepy.showToast({
+          title: '保存成功',
+          icon: 'success',
+          duration: 2000,
+          mask: true
+        })
+      }
+      this.$apply()
+      console.log(v)
+    }
+    async fetchUserInfo() {
+      const res = await api.fetchUserInfo({query: {
+        toId: this.uid
+      }})
+      this.user = res.user
+    }
+    async uplaod2OSS(tempFilePaths, action) {
+      if (tempFilePaths) {
+        let that = this
+        const uid = wepy.getStorageSync('userId')
+        const Action = action
+        const type = 2
+        const res = await uplaodImageFile.uploadFile({
+          uid: uid,
+          action: Action,
+          type: type,
+          idType: 0,
+          i: 0
+        }, tempFilePaths)
+        if (res.result) {
+          const filePaths = res.filePaths
+          if (filePaths.length > 0) {
+            const imageO = JSON.parse(filePaths[0].data)
+            if (Action === 'AvatarUpload') {
+              that.user.headImg = imageO.image
+              wepy.setStorageSync('avatar', imageO.image)
+            } else {
+              that.user.bgImg = imageO.image
+              await api.updateProfileInfo({
+                query: {
+                  bgImg: that.user.bgImg
+                }
+              })
+            }
+            wepy.setStorageSync('refreshUserInfo', true)
+  
+            that.$apply()
+            wepy.hideLoading()
+          } else {
+          // this.avatar = tempFilePaths[0]
+          }
+        } else {
+          wepy.hideLoading()
+          wepy.showToast({
+            title: '上传失败', // 提示的内容,
+            icon: 'none', // 图标,
+            duration: 2000, // 延迟时间,
+            mask: true, // 显示透明蒙层，防止触摸穿透,
+            success: res => {}
+          })
+        }
+      }
+    };
+
+    async updateNickNameConfirm(e) {
+      if (this.input) {
+        console.log('确定')
+        const res = await api.updateProfileInfo({
+          query: {
+            nickname: this.input
+          }
+        })
+        if (res.code === 0) {
+          wepy.setStorageSync('refreshUserInfo', true)
+          this.input = null
+          wepy.showToast({
+            title: '保存成功',
+            icon: 'success',
+            duration: 2000,
+            mask: true
+          })
+        }
+      }
+    };
+    async updateMetalConfirm() {
+      if (this.input) {
+        const res = await api.updateProfileInfo({
+          query: {
+            medalId: this.celectmedal
+          }
+        })
+        if (res.code === 0) {
+          wepy.setStorageSync('refreshUserInfo', true)
+          this.input = null
+          wepy.showToast({
+            title: '保存成功',
+            icon: 'success',
+            duration: 2000,
+            mask: true
+          })
+        }
+      }
+    };
+    async updateIntroInfoConfirm() {
+      if (this.input) {
+        console.log('确定')
+        this.editIntroing = true
+        const res = await api.updateProfileInfo({
+          query: {
+            introduce: this.input
+          }
+        })
+        if (res.code === 0) {
+          this.input = null
+          wepy.setStorageSync('refreshUserInfo', true)
+  
+          wepy.showToast({
+            title: '保存成功',
+            icon: 'success',
+            duration: 2000,
+            mask: true
+          })
+        }
+        this.$apply()
+      }
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    min-height: 100vh;
+    justify-content: flex-start;
+    background-color: #000000;
+    
+  }
+  .title {
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    margin-left: 34rpx;
+  }
+  .intro_title {
+    margin-top: 56rpx;
+  }
+  .avatar_box {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 280rpx;
+    position: relative;
+  }
+  .avatar_box_right {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 200rpx;
+    margin-right: 44rpx;
+  }
+  .avatar {
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: 50%;
+  }
+  .arr_grey {
+    width: 16rpx;
+    height: 28rpx;
+    margin-left: 40rpx;
+  }
+  .line {
+    width: 718rpx;
+    height: 2rpx;
+    position: absolute;
+    right: 0rpx;
+    bottom: 0rpx;
+    background: #212121;
+  }
+  .nickname_box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    position: relative;
+    height: 140rpx;
+  }
+  .intro_box {
+     display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    position: relative;
+    height: 200rpx;
+  }
+  .age_box {
+    width: 480rpx;
+    height: 112rpx;
+    margin-left: 66rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .input_style {
+    height: 80rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 32rpx;
+    color: #FFFFFF;
+    width: 480rpx;
+  }
+  .textarea_style {
+    margin-top: 46rpx;
+  }
+  .sex {
+    font-family: PingFangSC-Regular;
+    font-size: 32rpx;
+    color: #FFFFFF;
+    margin-left: 66rpx;
+  }
+  .subTitle {
+    
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #ffffff;
+    width: 480rpx;
+    box-sizing: border-box;
+    height: 88rpx;
+    line-height: 88rpx;
+  }
+  .picker {
+    width: 480rpx;
+    margin-left: 66rpx;
+  }
+  .medal_box{
+    background: #2C2C2C;
+    border-radius: 20rpx;
+    width: 684rpx;
+    height: 800rpx;
+    margin:0 0 24rpx 34rpx;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    transition: all .3s linear;
+    z-index: 99999;
+  }
+  .medal_box_top{
+    height: 64rpx;
+    widows: 100%;
+    position: relative;
+  }
+  .close{
+    width: 32rpx;
+    height: 32rpx;
+    position: absolute;
+    top: 24rpx;
+    right: 24rpx;
+  }
+  .medal_box_center{
+    text-align: center;
+    height: 40rpx;
+    width: 100%;
+    line-height: 40rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    margin-bottom:50rpx; 
+  }
+  
+
+  .medal_box_bottom{
+    width: 592rpx;
+    height: 320rpx;
+    margin-left: 48rpx;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+  }
+  .medal_box_bottom>:nth-last-child(1){
+    margin-bottom: 10rpx;
+  }
+  .medal_box_bottom>:nth-last-child(2){
+    margin-bottom: 10rpx;
+  }
+  scroll-view::-webkit-scrollbar{
+    width: 0;
+    height: 0;
+    color: transparent;
+  }
+
+  .bottom_item_box{
+    width:280rpx;
+    height:90rpx;
+    margin-bottom: 30rpx;
+    position: relative;
+  }
+  .infoedit_medal{
+    width: 280rpx;
+    height: 90rpx;
+  }
+  .bottom_item{
+    width: 264rpx;
+    height: 72rpx;
+    position: absolute;
+    background: #4f4f4f;
+    border-radius: 36rpx;
+    color: #fff;
+    text-align: center;
+    line-height: 72rpx;
+    top: 8rpx;
+    left: 8rpx
+  }
+  .medal_msg{
+    widows: 100%;
+    height: 40rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #F5F5F5;
+    letter-spacing: 0;
+    text-align: center;
+    margin-top: 50rpx;
+  }
+.medal_botton{
+  width: 568rpx;
+  height: 88rpx;
+  border-radius: 44rpx;
+  text-align: center;
+  line-height: 88rpx;
+  margin: 32rpx 0 0 58rpx;
+  font-family: PingFangSC-Regular;
+  font-size: 32rpx;
+  color: #626262;
+  letter-spacing: 0;
+}
+scroll-view{
+  height: 400rpx;
+}
+.background{
+  width: 100%;
+  height: 136rpx;
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+#bckimg{
+  height: 100rpx;;
+  width: 173rpx;
+  border-radius: 4rpx;
+}
+ .medal_title {
+    height: 88rpx;
+    width: 64rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    margin-left: 34rpx;
+  }
+  .medal_ms{
+    margin-left:66rpx; 
+    font-family:PingFangSC-Regular;
+    font-size:32rpx;
+    color:#FFFFFF;
+
+  }
+.medal_box_one{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background: #2C2C2C;
+  opacity: 0;
+  display: none;
+}
+</style>

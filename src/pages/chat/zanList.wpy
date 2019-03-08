@@ -1,0 +1,207 @@
+<template>
+    <view class='container'>
+        <nav :navH.sync='navH' :title.sync='title'></nav>
+        <!-- chat list -->
+        <view class='chat_list_box' style='margin-top:{{navH + 90}}rpx;'>
+            <repeat for="{{list}}" key="index" index="index" item="item">
+                <view class='chat_list_item'  >
+                    <image src='{{item.icon}}' class='item_avatar' mode='aspectFill'/>
+                    <view class='item_content'>
+                      
+                        <!-- <view class='item_username'>{{item.title}}</view> -->
+                        <view class='item_date_box'>
+                          <view class='item_username'>{{item.title ? item.title : '系统通知'}}</view>
+                          <view class='item_time'>{{item.addTime}}</view>
+                        </view>
+                        
+                        <view class='item_message'>{{item.content}}</view>
+                    </view>               
+                    <!-- <image src='../../assets/arr_r_grey.png' class='arr_grey' />                   -->
+                    <view class='item_line'></view>
+                </view>                               
+            </repeat>
+        </view>
+
+      <view class='empty_box' wx:if='{{list.length <= 0}}'>暂无数据</view>
+
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import nav from '@/components/nav'
+    import api from '@/api/api'
+    import PaginationModel from '@/models/paginationModel'
+    const pageMode = new PaginationModel()
+    export default class zanList extends wepy.page {
+      components = {
+        nav
+      }
+      data = {
+        navH: 0,
+        title: '消息',
+        list: [],
+        isOpenAll: true
+      };
+      events = {
+        back2TopPage() {
+          console.log('navBack')
+          wepy.navigateBack({
+            delta: 1
+          })
+        }
+      }
+      methods = {
+        showOtherInfo(item) {
+          const uid = item.userId
+          const userId = wepy.getStorageSync('userId')
+          if (userId !== uid) {
+            wepy.navigateTo({ url: `/pages/userInfo/others?userId=${item.userId}` })
+          } else {
+            console.log('自己跳转自己')
+          }
+        }
+    
+      };
+      async onLoad(option) {
+        this.navH = this.$parent.globalData.navHeight
+        await this.fetchData()
+        const res = await this.clearZanMessage()
+        if (res.code === 0) {
+          wepy.removeStorageSync('pointNum')
+        }
+        this.$apply()
+      }
+      onPullDownRefresh = async() => {
+        this.fetchData()
+      };
+      onReachBottom = async() => {
+        this.fecthMoreData()
+      }
+      async fetchData() {
+        this.list = []
+        pageMode.currentPage = 1
+        const res = await pageMode.pullToRefresh(api.fetchZanList)
+        wepy.stopPullDownRefresh()
+        if (res.code === 0) {
+          if (res.messageList) {
+            this.list = this.list.concat(res.messageList)
+          }
+        }
+        this.$apply()
+      };
+      async fecthMoreData() {
+        if (pageMode.checkLoadMore(this.list)) {
+          let res = await pageMode.more(api.fetchZanList)
+          if (res.code === 0) {
+            if (res.messageList) {
+              this.list = this.list.concat(res.messageList)
+            }
+          }
+        }
+        this.$apply()
+      }
+    
+      async clearZanMessage() {
+        return await api.clearUnreadMessage({
+          query: {
+            type: 2
+          }
+        })
+      }
+    }
+</script>
+
+<style lang="less" scoped>
+    .container {
+        min-height: 100vh;
+        justify-content: flex-start;
+        background-color: #000000;
+    }
+   
+    .white_font {
+        color: #fff;
+    }
+    .yellow_font {
+        color: #FFDC51;
+    }
+  
+    .chat_list_box {
+        width: 100%;
+        margin-top: 40rpx;
+    }
+    .chat_list_item {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        position: relative;
+    }
+    .item_avatar {
+        width: 48rpx;
+        height: 38rpx;
+        margin-left: 64rpx;
+        margin-right: 60rpx;
+    }
+    .item_content {
+        display: flex;
+        flex-direction: column;
+        align-content: center;
+        justify-content: flex-start;
+       width:530rpx;
+
+        .item_username {
+            font-family: PingFangSC-Medium;
+            font-size: 16px;
+            color: #FFFFFF;
+        }
+        .item_message {
+            font-family: PingFangSC-Regular;
+            font-size: 14px;
+            color: #8A8A8A;
+           width:530rpx;
+
+            margin-top: 8rpx;
+            // overflow: hidden;
+            // white-space: nowrap;
+            // text-overflow: ellipsis; 
+            // height: 34rpx;
+            padding-bottom: 20rpx;           
+        }
+    }
+
+
+    .item_line {
+        width: 578rpx;
+        height: 2rpx;
+        position: absolute;
+        right: 0rpx;
+        bottom: 0rpx;
+        background-color: #212121;        
+    }
+    .arr_grey {
+        width: 16rpx;
+        height: 28rpx;
+        margin-left: 32rpx;
+    }
+    .empty_box {
+        color: #acacac;
+        margin-top: 300rpx;
+        font-size: 24rpx;
+    }
+    .item_date_box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top:20rpx;
+     width:530rpx;
+
+
+    }
+    .item_time {
+      font-family: PingFangSC-Regular;
+      font-size: 26rpx;
+      color: #979797;
+    }
+</style>

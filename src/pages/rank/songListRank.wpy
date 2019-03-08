@@ -1,0 +1,910 @@
+<!-- 歌单榜单 -->
+<template>
+  <view class='container'>
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <view wx:if='{{tab===1}}' class='song_box'>
+      <view class='song_tips'>
+        <view wx:if="{{remark!==null}}">{{remark}}</view>
+      </view>
+      <view class="center">
+        <repeat for="{{mySingSong}}" key="index" index="index" item="item">
+          <view class='music_box' bindtouchstart="touchS" bindtouchmove="touchM" bindtouchend="touchE" data-index="{{index}}">
+            <view class='music_item' style="{{item.txtStyle}}" @tap.stop='practiceSing({{index}})'>
+              <view class='music_item_index'>{{index + 1}}</view>
+              <image class='music_corver' mode="aspectFill" src="{{item.musicImage + '?x-oss-process=image/resize,m_lfit,h_128,w_128'}}" @tap.stop='startIndex({{index}})' />
+              <view class='music_content' @tap.stop='toChallenge({{item}})'>
+                <view class='music_name' style="color:{{index === currentIndex ? '#FFDC51' : '#fff'}}">{{item.musicName}}</view>
+                <view class='music_auth' style="color:{{index === currentIndex ? '#FFDC51' : '#fff'}}">{{item.author}}</view>
+                <view class='music_count'>本周{{!item.followNum?"暂无":item.followNum}}人领唱过</view>
+              </view>
+              <view class="add_music">
+                <image src="../../assets/songlist_add.png" wx:if="{{!item.isFollow}}" lazy-load="true" @tap.stop='addPracticeList({{item}},{{index}})'></image>
+              </view>
+              <view class='music_follow'>
+                <image class='music_follow_icon' src='../../assets/tb_sing_clicked.png' />
+                <view class='music_follow_tips' @tap.stop="toChallenge({{item}})">领唱</view>
+              </view>
+            </view>
+          </view>
+        </repeat>
+        <view class='empty_container' wx:if='{{mySingSong<=0 }}'>
+          <image class='empty_icon' src='../../assets/empty.png' />
+          <view class='empty_title'>本周暂无领唱，快来成为第一个领唱者吧</view>
+        </view>
+      </view>
+    </view>
+    <!-- <scroll-view scroll-y scroll-with-animation @scroll="" class="scroll" style='margin-top:{{navH + 90}}rpx;height:{{scrH*2 - navH-350}}rpx;'> -->
+    <view wx:if='{{tab===0}}' class="ranking_box" style='margin-top:{{navH + 90}}rpx;'>
+      <image src="/assets/ranking_timer.png" mode="aspectFill" lazy-load="true" class="ranking_timer">
+        <view class='countdown'>
+          <view>{{ day }}</view>
+          <view>{{ hour }}</view>
+          <view>{{ minute }}</view>
+          <view>{{ second }}</view>
+        </view>
+      </image>
+      <view class="margin_msg">本周挑战成功后，会自动进入票选阶段</view>
+      <repeat for="{{songListRank}}" key="index" index="index" item="item">
+        <view class='containers'>
+          <view class="leading_singer_box">
+            <view class="box_top" @tap.stop="tosongRank({{item}})">
+              <view class="top_title">{{item.musicName}}</view>
+              <view class="image">
+                <view>
+                  <repeat for="{{item.headImgs}}" key="index" index="index" item="item" mode='aspectFill' lazy-load='true'>
+                    <image src="{{item}}" mode="aspectFill" lazy-load="true" class="image_one" style="right:{{index*42}}rpx;"></image>
+                  </repeat>
+                </view>
+                <view class="top_msg">{{ item.challengeNum == null ? 0:item.challengeNum }}人挑战过</view>
+              </view>
+            </view>
+            <view class="box_center">
+              <view class='box_center_one'>
+                <view class="box_center_title">{{item.nickName}}</view>
+                <view class="box_center_medal" wx:if="{{item.levelName}}">{{item.levelName}} {{item.userLevel}}</view>
+                <view class="center_medal" wx:if="{{item.medalName}}">{{item.medalName}}</view>
+              </view>
+              <view class='box_center_two'>
+                <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true" @tap.stop='showOtherInfo({{item}})'></image>
+                <view class="box_center_add" wx:if="{{ !item.follow }}" @tap.stop="followAction({{item}},{{index}})">+</view>
+                <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                  <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}"></image>
+                  <text>{{item.time}}'</text>
+                </view>
+                <image class="else_img" src="{{(index === cindex)? '/assets/list_voice.gif':'/assets/lead_voice_normal.png'}}" mode="aspectFill" lazy-load="true"></image>
+              </view>
+            </view>
+            <view class="box_bottom">
+              <view>
+                <image class="else_imgs" src="/assets/lead_share.png" mode="aspectFill" lazy-load="true"></image>
+                <button size="defult" type="defult" open-type="share" data-item='{{item}}' class="share"></button>
+                <view>分享</view>
+              </view>
+              <view class="box_bottom_right">
+                <view>{{ (item.pickNum == null) ? 0 :item.pickNum}}人Pick</view>
+                <image src="{{ item.pick ? '/assets/lead_pick_clicked.png' : '/assets/lead_pick_normal.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="Pick({{item}},{{index}})"></image>
+              </view>
+            </view>
+          </view>
+        </view>
+      </repeat>
+      <view class='empty_container' wx:if='{{songListRank<=0 }}'>
+        <image class='empty_icon' src='../../assets/empty.png' />
+        <view class='empty_title'>本周暂无领唱，快来成为第一个领唱者吧</view>
+      </view>
+    </view>
+    <!-- </scroll-view>          -->
+    <!-- 底部导航 -->
+    <view class='bottom-abount'>
+      <view class='bottom-item'>
+        <view class='bottom-item-left'>
+          <view class='bottom-item-title' @tap.stop='tabSelect({{1}})' style="color:{{tab ?  '#FFDC51':'#fff'}}">我要领唱</view>
+        </view>
+        <image src='../../assets/otherinfo_line.png' class='bottom-item-line' />
+      </view>
+      <view class='bottom-item'>
+        <view class='bottom-item-left'>
+          <view class='bottom-item-title' @tap.stop='tabSelect({{0}})' style="color:{{tab ? '#fff' :'#FFDC51'}}">他人领唱</view>
+        </view>
+      </view>
+    </view>
+    <palletMask wx:if='{{!isShowedAddMyMin && haveAdded}}' />
+  </view> 
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import nav from '@/components/nav'
+  import PaginationModel from '@/models/paginationModel'
+  import WxModal from '@/utils/wxModal'
+  const pageMode = new PaginationModel()
+  const likePageMode = new PaginationModel()
+  const followIdealMode = new PaginationModel()
+  import api from '@/api/api'
+  import AudioInnerPlayer from '@/utils/audioPlayer'
+  import palletMask from '@/components/Add2PalletMask'
+  let player = new AudioInnerPlayer()
+  export default class songListRank extends wepy.page {
+    config = {
+      enablePullDownRefresh: true
+    };
+    data = {
+      title: '',
+      navH: '',
+      scrH: '',
+      tab: 1,
+      day: '00',
+      hour: '00',
+      minute: '00',
+      second: '00',
+      songListRank: [],
+      mySingSong: [],
+      list: [],
+      sheetId: '',
+      type: 0, // 0 歌手排行榜 1 歌曲想唱人员列表
+      cindex: '',
+      date: '',
+      uid: '',
+      isSongMore: true,
+      isMySingMore: true,
+      remark: '',
+      isShowedAddMyMin: true,
+      haveAdded: false
+    };
+    components = {
+      nav,
+      palletMask
+    };
+    methods = {
+      async followAction(item, index) {
+        console.log(index)
+        const items = this.songListRank[index]
+        debugger
+        const res = await api.followUser({
+          id: items.userId
+        })
+        if (res.code === 0) {
+          wepy.showToast({
+            title: '关注成功',
+            icon: 'none',
+            duration: 2000,
+            mask: true
+          })
+          items.follow = true
+        }
+        this.$apply()
+      },
+      async addPracticeList(item, index) {
+        const mySingSong = this.mySingSong[index]
+        let res = null
+        res = await api.addPracticeList({
+          query: {
+            ideaId: item.ideaId
+          }
+        })
+        if (res.code === 0) {
+          WxModal.alert('歌曲添加成功')
+          mySingSong.isFollow = true
+          if (this.$parent.globalData.isMusicListAdded === false) {
+            this.haveAdded = true
+            this.$parent.globalData.isMusicListAdded = true
+          }
+        } else {
+          WxModal.alert('歌曲添加失败')
+        }
+        this.$apply()
+      },
+      tosongRank(item) {
+        wepy.navigateTo({
+          url: `/pages/rank/songRank?ideaId=${item.ideaId}`
+        })
+      },
+      Pick(item, index) {
+        const isPick = this.songListRank[index]
+        const picknum = this.songListRank[index]
+        if (!isPick.pick) {
+          isPick.pick = true
+          picknum.pickNum++
+          api.clickPick({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        } else {
+          api.clickPick({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        }
+        this.$apply()
+      },
+      playMusic(item, index) {
+        this.$parent.event.emit('stopSubPagePlayer')
+        this.$parent.event.emit('onBackgroundTap')
+        // this.$parent.globalData.audioManager.pause()
+        player.stop()
+        if (!this.isPlay) {
+          player.play(item.songUrl)
+          this.isPlay = true
+          this.cindex = index
+          api.addlog({
+            query: {
+              challengeId: item.challengeId
+            }
+          })
+        } else {
+          if (this.cindex !== index) {
+            player.play(item.songUrl)
+            this.isPlay = true
+            this.cindex = index
+          } else {
+            player.pause()
+            this.isPlay = false
+            this.cindex = -1
+          }
+        }
+        console.log(player.isPlaying())
+        this.$apply()
+      },
+      showOtherInfo(item) {
+        const uid = item.userId
+        const userId = wepy.getStorageSync('userId')
+        if (uid !== userId) {
+          wepy.navigateTo({
+            url: `/pages/userInfo/others?userId=${item.userId}`
+          })
+        } else {
+          console.log('自己不能跳转自己')
+        }
+      },
+      toChallenge(item) {
+        wepy.navigateTo({
+          url: `/pages/subHome/challenge?ideaId=${item.ideaId}`
+        })
+      },
+      tabSelect(index) {
+        this.tab = index
+        this.fetchData()
+        this.$apply()
+      }
+    };
+    countDown(times) {
+      this.timer = null
+      let _this = this
+      this.timer = setInterval(function() {
+        // 时间默认值
+        let day = 0
+        let hour = 0
+        let minute = 0
+        let second = 0
+        if (times > 0) {
+          day = Math.floor(times / (60 * 60 * 24))
+          hour = Math.floor(times / (60 * 60)) - (day * 24)
+          minute = Math.floor(times / 60) - (day * 24 * 60) - (hour * 60)
+          second = Math.floor(times) - (day * 24 * 60 * 60) - (hour * 60 * 60) - (minute * 60)
+        }
+        if (day <= 9) {
+          _this.day = '0' + day
+        } else {
+          _this.day = day
+        }
+        if (hour <= 9) {
+          _this.hour = '0' + hour
+        } else {
+          _this.hour = hour
+        }
+        if (minute <= 9) {
+          _this.minute = '0' + minute
+        } else {
+          _this.minute = minute
+        }
+        if (second <= 9) {
+          _this.second = '0' + second
+        } else {
+          _this.second = second
+        }
+        times--
+        _this.$apply()
+      }, 1000)
+      if (times <= 0) {
+        this.fetchData()
+        clearInterval(this.timer)
+      }
+    };
+    async fetchData() {
+      this.songListRank = []
+      this.mySingSong = []
+      this.list = []
+      let res = null
+      switch (this.tab) {
+        case 0:
+          likePageMode.currentPage = 1
+          res = await likePageMode.pullToRefresh(api.songListRank, {
+            sheetId: this.sheetId
+          })
+          if (res.code === 0) {
+            this.songListRank = res.challengeList
+            this.countDown(res.countDown)
+          }
+          break
+        case 1:
+          followIdealMode.currentPage = 1
+          res = await followIdealMode.pullToRefresh(api.mySingSong, {
+            sheetId: this.sheetId
+          })
+          if (res.code === 0) {
+            this.mySingSong = res.challengeList
+            this.title = res.sheetName
+            this.remark = res.remark
+          }
+          break
+        default:
+          break
+      }
+      wepy.stopPullDownRefresh()
+      // if (res.code === 0) {
+      //   if (res.challengeList) {
+      //     this.concatData(res.challengeList)
+      //   }
+      // }
+      this.$apply()
+    };
+    async fecthMoreData() {
+      let res = null
+      switch (this.tab) {
+        case 0:
+          res = await likePageMode.more(api.songListRank, {
+            sheetId: this.sheetId
+          })
+          break
+        case 1:
+          res = await followIdealMode.more(api.mySingSong, {
+            sheetId: this.sheetId
+          })
+          break
+        default:
+          break
+      }
+      if (res.code === 0) {
+        if (!pageMode.checkLoadMore(res.challengeList)) {
+          if (this.tab === 0) {
+            this.isSongMore = false
+          } else if (this.tab === 1) {
+            this.isMySingMore = false
+          }
+        }
+        if (res.challengeList.length > 0) {
+          this.concatData(res.challengeList)
+        }
+      }
+      this.$apply()
+    };
+    concatData(list) {
+      switch (this.tab) {
+        case 0:
+          this.songListRank = this.songListRank.concat(list)
+          break
+        case 1:
+          this.mySingSong = this.mySingSong.concat(list)
+          break
+        default:
+          break
+      }
+      this.$apply()
+    };
+    onPullDownRefresh = async() => {
+      this.fetchData()
+    };
+    onReachBottom = async() => {
+      if (this.tab === 0) {
+        if (this.isSongMore) {
+          this.fecthMoreData()
+        }
+      } else if (this.tab === 1) {
+        if (this.isMySingMore) {
+          this.fecthMoreData()
+        }
+      }
+    };
+    events = {
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      },
+      dimissMinParagramTips() {
+        this.isShowedAddMyMin = true
+        this.$parent.globalData.isShowedAddMyMin = true
+        this.$apply()
+      }
+    };
+    watch = {};
+    computed = {};
+    async onLoad(option) {
+      this.uid = wepy.getStorageSync('userId')
+      this.navH = this.$parent.globalData.navHeight
+      this.scrH = this.$parent.globalData.screenHeight
+      this.sheetId = option.sheetId
+      await wx.showLoading({
+        title: '加载中...'
+      })
+      await this.fetchData()
+      await wx.hideLoading()
+      this.$apply()
+    };
+    onShow() {
+      this.isShowedAddMyMin = wepy.getStorageSync('isShowedAddMyMin')
+    };
+    onUnload() {
+      player.stop()
+      this.isPlay = false
+      this.cindex = -1
+      this.$apply()
+      clearInterval(this.timer)
+    }
+    onShareAppMessage(res) {
+      let follow = this.$parent.globalData.shareInfo.pickOrLove
+      let shareTitle = follow.text
+      const item = res.target.dataset.item
+      console.log(item)
+      return {
+        title: shareTitle,
+        path: '/pages/index?uid=' + wepy.getStorageSync('userId') + '&shareType=1' + `&shareId=${item.challengeId}`,
+        imageUrl: follow.shareImg,
+        success: function(res) {}
+      }
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    min-height: 100vh;
+    justify-content: flex-start;
+    flex-direction: column;
+  }
+  .containers {
+    height: 370rpx;
+    padding-bottom: 32rpx;
+    background: #000000;
+  }
+  .ranking_box {}
+  .bottom-abount {
+    position: fixed;
+    bottom: 0rpx;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    height: 98rpx;
+    background-color: rgba(44, 44, 44, 0.85);
+    z-index: 10;
+  }
+  .bottom-item {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: 374rpx;
+    height: 98rpx;
+  }
+  .bottom-item-left {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 374rpx;
+    height: 98rpx;
+  }
+  .bottom-item-title {
+    font-family: PingFangSC-Regular;
+    color: white;
+    font-size: 32rpx;
+    margin-left: 16rpx;
+  }
+  .bottom-item-line {
+    position: absolute;
+    width: 1rpx;
+    height: 28rpx;
+    margin-left: 374rpx
+  }
+  .song_tips {
+    color: #fff;
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    margin-top: 160rpx;
+    margin-bottom: 30rpx;
+  }
+  .music_box {
+    position: relative;
+    z-index: 5;
+  }
+  .music_item {
+    width: 100vw;
+    height: 204rpx;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    border-bottom: 2rpx solid #2c2c2c;
+    position: relative;
+    z-index: 5;
+    background: #000;
+  }
+  .music_item_index {
+    font-family: PingFangSC-Semibold;
+    font-size: 28rpx;
+    color: #8A8A8A;
+    text-align: right;
+    width: 40rpx;
+    margin-right: 20rpx;
+  }
+  .music_corver {
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: 12rpx;
+  }
+  .music_content {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex-direction: column;
+    margin-left: 22rpx;
+    width: 310rpx;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    .music_name {
+      font-family: PingFangSC-Medium;
+      font-size: 30rpx;
+      margin-bottom: 14rpx;
+    }
+    .music_auth {
+      font-family: PingFangSC-Regular;
+      font-size: 26rpx;
+    }
+    .music_count {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 12rpx;
+    }
+  }
+  .music_follow_icon {
+    width: 34rpx;
+    height: 34rpx;
+  }
+  .music_follow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 116rpx;
+    height: 56rpx;
+    border: 2rpx solid #FFDC51;
+    border-radius: 30rpx;
+    .music_follow_tips {
+      font-family: PingFangSC-Regular;
+      font-size: 24rpx;
+      color: #FFDC51;
+      margin-left: 3rpx;
+    }
+  }
+  .music_icon {
+    width: 118rpx;
+    height: 118rpx;
+    border-radius: 50%;
+  }
+  .song_box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 98rpx;
+  }
+  .ranking_timer {
+    width: 492rpx;
+    height: 176rpx;
+    position: relative;
+    margin-left: 92rpx;
+  }
+  .margin_msg {
+    margin: 20rpx 0 20rpx 0;
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    width: 670rpx;
+    color: #FFFFFF;
+    text-align: center;
+  }
+  .countdown {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    color: #000000;
+    position: absolute;
+    height: 66rpx;
+    width: 400rpx;
+    top: 37rpx;
+    left: 48rpx; // font-family: DINCondensed-Bold;
+    font-size: 60rpx;
+    color: #303030;
+  }
+  .countdown>view:not(:first-child) {
+    margin-left: 35rpx;
+  }
+  .countdown>view {
+    width: 80rpx;
+    text-align: center;
+    height: 66rpx;
+    line-height: 66rpx;
+  }
+  .containers {
+    height: 370rpx;
+    padding-bottom: 32rpx;
+    background: #000000;
+  }
+  .leading_singer_box {
+    width: 670rpx;
+    height: 370rpx;
+    background: #FFFFFF;
+    box-shadow: 0 8rpx 0 0 #424242;
+    border-radius: 20rpx;
+  }
+  .box_top {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: center;
+    height: 88rpx;
+    width: 670rpx;
+    border-bottom: 2rpx solid #F5F5F5;
+  }
+  .top_title {
+    width: 300rpx;
+    margin-left: 32rpx;
+    height: 40rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top_msg {
+    text-align: right;
+    margin-right: 24rpx;
+    width: 100%;
+    height: 34rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+    margin-left: 16rpx;
+    position: absolute;
+    right: 0rpx;
+  }
+  .image>:first-child {
+    display: flex;
+    height: 100%;
+    width: 150rpx;
+    position: relative;
+    align-items: center;
+  }
+  .image>view>image {
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+  }
+  .image>.image_two {
+    position: absolute;
+    left: 38rpx;
+    background: #73CFE5;
+  }
+  .image>.image_three {
+    position: absolute;
+    left: 76rpx;
+    background: #FF4174;
+  }
+  .image {
+    width: 300rpx;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .image_one {
+    position: absolute;
+  }
+  .box_center {
+    display: flex;
+    flex-flow: row wrap;
+    height: 192rpx;
+    border-bottom: 2rpx solid #F5F5F5;
+  }
+  .box_center_one {
+    margin-top: 18rpx;
+    height: 46rpx;
+    margin-left: 32rpx;
+    display: flex;
+    flex-flow: row nowrap;
+  }
+  .box_center_title {
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #303030;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .box_center_medal {
+    width: 186rpx;
+    background: #73CFE5;
+    border-radius: 70rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 46rpx;
+    margin-left: 28rpx;
+  }
+  .center_medal {
+    padding: 0 20rpx 0 20rpx;
+    background: #FF4174;
+    border-radius: 70rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 46rpx;
+    margin-left: 20rpx;
+  }
+  .box_center_two {
+    width: 100%;
+    height: 94rpx;
+    margin-top: 16rpx;
+    position: relative;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+  }
+  .box_center_two>.user_img {
+    position: absolute;
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 50%;
+    margin-left: 32rpx;
+    z-index: 1;
+    border: 4rpx solid #000000;
+  }
+  .box_center_add {
+    width: 44rpx;
+    height: 44rpx;
+    background: #FF4174;
+    border-radius: 50%;
+    border: 4rpx solid #000000;
+    position: absolute;
+    top: 55rpx;
+    left: 48rpx;
+    z-index: 2;
+    font-size: 48rpx;
+    color: #fff;
+    text-align: center;
+    line-height: 40rpx;
+  }
+  .box_center_play {
+    position: absolute;
+    left: 54rpx;
+    width: 270rpx;
+    height: 64rpx;
+    background: #FFFFFF;
+    border: 4rpx solid #303030;
+    border-bottom-right-radius: 50rpx;
+    border-top-right-radius: 50rpx;
+  }
+  .box_center_play>image {
+    position: absolute;
+    left: 84rpx;
+    top: 16rpx;
+    width: 30rpx;
+    height: 34rpx;
+  }
+  .box_center_play>text {
+    position: absolute;
+    top: 14rpx;
+    left: 134rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+  }
+  .else_img {
+    width: 150rpx;
+    height: 100rpx;
+    position: absolute;
+    right: 40rpx;
+  }
+  .box_bottom {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 96rpx;
+  }
+  .box_bottom>view {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 96rpx;
+  }
+  .box_bottom>view>.else_imgs {
+    width: 52rpx;
+    height: 52rpx;
+    margin-left: 18rpx;
+  }
+  .box_bottom>view>view {
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #303030;
+    margin-left: 8rpx;
+    line-height: 96rpx;
+    height: 96rpx;
+  }
+  .box_bottom>.box_bottom_right {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    flex-flow: row nowrap;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+    margin-right: 0;
+  }
+  .box_bottom>.box_bottom_right>image {
+    width: 58rpx;
+    height: 40rpx;
+    margin: 0 34rpx 0 10rpx;
+  }
+  .scroll {
+    width: 100%;
+  }
+  .share {
+    position: absolute;
+    width: 335rpx;
+    height: 96rpx;
+    opacity: 0;
+    top: 0;
+    left: 0;
+  }
+  .empty_container {
+    position: fixed;
+    top: 40%;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    .empty_icon {
+      width: 172rpx;
+      height: 166rpx;
+    }
+    .empty_title {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 36rpx
+    }
+  }
+  .add_music {
+    width: 80rpx;
+    height: 204rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    image {
+      width: 28rpx;
+      height: 28rpx;
+    }
+  }
+</style>

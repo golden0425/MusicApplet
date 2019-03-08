@@ -1,0 +1,336 @@
+<template>
+  <view class='container'>
+      <!-- 头部导航 -->
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <view class='avatar_box' style='margin-top:{{navH + 90}}rpx;'>
+        <!-- 用户信息 -->
+        <view class='user_top_container'>
+                <view class='user_headimg'>
+                <image src="{{user.headImg + '?x-oss-process=image/resize,m_lfit,h_136,w_136'}}" class='user_avatar' mode='aspectFill' @tap.stop='previewImage' lazy-load='true'/>
+                </view>
+                <view class='medal_top'>
+                    <view class='username_box'>
+                        <view class='usermedal'>闪亮新秀LV2</view>
+                        <view class='user_sex'>
+                            <image src='../../assets/info_gender_female.png' wx:if='{{user.gender === 2}}' class='sex_icon' lazy-load='true'/>
+                            <image src='../../assets/info_gender_male.png' wx:else class='sex_icon' lazy-load='true'/>
+                            <view class='sex'>{{user.age ? user.age : 0 }}</view>
+                        </view>
+                        <view class='user_edit_button' @tap='modifyUserInfo'>编辑资料</view>
+                    </view>
+                    <view class='user_introduct' wx:if='{{user.introduce}}'>{{user.introduce}}</view>
+                </view>
+            </view>
+            <view class="medal_center">
+                <view class='medal_title'>升级成就</view>
+                <view class='medal_box'>
+                    <view class='user_medal'>
+                        <image src="{{user.headImg + '?x-oss-process=image/resize,m_lfit,h_136,w_136'}}" class='user_avatar' mode='aspectFill' @tap.stop="previewMedal({{index}})" lazy-load='true'/>
+                        <view class='medal_name' @tap='show'>展示</view>
+                    </view>
+                </view>
+            </view>
+    </view>
+  </view>
+ 
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import nav from '@/components/nav'
+  import api from '@/api/api'
+  import uplaodImageFile from '@/utils/oss/UploadAliyun'
+
+  export default class Example extends wepy.page {
+    config = {
+      navigationBarTitleText: ''
+    };
+    data = {
+      navH: 0,
+      title: '',
+      endDate: '',
+      uid: null,
+      user: null,
+      input: null,
+      editIntroing: false,
+      isShow: ''
+    };
+    components = {
+      nav
+    };
+    methods = {
+      show() {
+        this.isShow = 1
+        console.log(this.isShow)
+        this.$apply()
+      },
+      previewImage() {
+        wepy.previewImage({
+          urls: [this.user.headImg]
+        })
+      },
+      modifyUserInfo() {
+        wepy.navigateTo({ url: 'editUserInfo' })
+      },
+      previewMedal(index) {
+        console.log(index)
+        wepy.navigateTo({ url: '/pages/rank/previewMedal' })
+      }
+    };
+    events = {
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      }
+    };
+    watch = {};
+    computed = {};
+    async onLoad() {
+      this.navH = this.$parent.globalData.navHeight
+      this.endDate = this.getCurrentDateString()
+      this.uid = wepy.getStorageSync('userId')
+      await this.fetchUserInfo()
+      this.$apply()
+    };
+    onShow() {};
+    getCurrentDateString() {
+      var date = new Date()
+      // 获取当前月份
+      var nowMonth = date.getMonth() + 1
+      // 获取当前是几号
+      var strDate = date.getDate()
+      // 添加分隔符“-”
+      var seperator = '-'
+      // 对月份进行处理，1-9月在前面添加一个“0”
+      if (nowMonth >= 1 && nowMonth <= 9) {
+        nowMonth = '0' + nowMonth
+      }
+      // 对月份进行处理，1-9号在前面添加一个“0”
+      if (strDate >= 0 && strDate <= 9) {
+        strDate = '0' + strDate
+      }
+      var nowDate = date.getFullYear() + seperator + nowMonth + seperator + strDate
+      return nowDate
+    };
+    async bindDateChange(e) {
+      const v = e.detail.value
+  
+      this.user.birthday = v
+      this.$apply()
+      const res = await api.updateProfileInfo({
+        query: {
+          birthday: v
+        }
+      })
+      if (res.code === 0) {
+        wepy.setStorageSync('refreshUserInfo', true)
+        wepy.showToast({
+          title: '保存成功',
+          icon: 'success',
+          duration: 2000,
+          mask: true
+        })
+      }
+      this.$apply()
+      console.log(v)
+    }
+    async fetchUserInfo() {
+      const res = await api.fetchUserInfo({query: {
+        toId: this.uid
+      }})
+      this.user = res.user
+      this.title = this.user.nickname
+    }
+    async uplaod2OSS(tempFilePaths) {
+      if (tempFilePaths) {
+        let that = this
+        const uid = wepy.getStorageSync('userId')
+        const action = 'AvatarUpload'
+        const type = 2
+        const res = await uplaodImageFile.uploadFile({
+          uid: uid,
+          action: action,
+          type: type,
+          idType: 0,
+          i: 0
+        }, tempFilePaths)
+        if (res.result) {
+          const filePaths = res.filePaths
+          if (filePaths.length > 0) {
+            const imageO = JSON.parse(filePaths[0].data)
+            that.user.headImg = imageO.image
+            wepy.setStorageSync('refreshUserInfo', true)
+            wepy.setStorageSync('avatar', imageO.image)
+            that.$apply()
+            wepy.hideLoading()
+          } else {
+          // this.avatar = tempFilePaths[0]
+          }
+        } else {
+          wepy.hideLoading()
+          wepy.showToast({
+            title: '上传失败', // 提示的内容,
+            icon: 'none', // 图标,
+            duration: 2000, // 延迟时间,
+            mask: true, // 显示透明蒙层，防止触摸穿透,
+            success: res => {}
+          })
+        }
+      }
+    };
+
+    async updateNickNameConfirm(e) {
+      if (this.input) {
+        console.log('确定')
+        const res = await api.updateProfileInfo({
+          query: {
+            nickname: this.input
+          }
+        })
+        if (res.code === 0) {
+          wepy.setStorageSync('refreshUserInfo', true)
+          this.input = null
+          wepy.showToast({
+            title: '保存成功',
+            icon: 'success',
+            duration: 2000,
+            mask: true
+          })
+        }
+      }
+    };
+    async updateIntroInfoConfirm() {
+      if (this.input) {
+        console.log('确定')
+        this.editIntroing = true
+        const res = await api.updateProfileInfo({
+          query: {
+            introduce: this.input
+          }
+        })
+        if (res.code === 0) {
+          this.input = null
+          wepy.setStorageSync('refreshUserInfo', true)
+  
+          wepy.showToast({
+            title: '保存成功',
+            icon: 'success',
+            duration: 2000,
+            mask: true
+          })
+        }
+        this.$apply()
+      }
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+    .container {
+        min-height: 100vh;
+        justify-content: flex-start;
+        background-color: #000000;
+    }
+    .avatar_box{
+        width: 100%;
+    }
+    .title {
+        font-family: PingFangSC-Medium;
+        font-size: 32rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        margin-left: 34rpx;
+    }
+    .user_top_container {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        margin-right: 36rpx;
+    }
+    .user_headimg{
+        margin-left: 20px;
+    }
+  .user_avatar {
+        width: 136rpx;
+        height: 136rpx;
+        border-radius: 50%;
+    }
+    .medal_top {
+        width: 90%;
+        margin-left: 40rpx;
+    }
+    .medal_center{
+         width: 90%;
+        margin:40rpx 0 0 40rpx;
+    }
+
+    .username_box {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+    .medal_title{
+        font-size: 40rpx;
+        color: #fff;
+    }
+    .medal_box{
+        margin-top: 10rpx;
+        display: flex;
+        flex-flow: row  nowrap;
+        justify-content:space-between;
+    }
+    .medal_name{
+        font-size: 32rpx;
+        color: #F1F1F1;
+        text-align: center;
+        margin-top: 10rpx;
+    }
+    .usermedal {
+        font-family: PingFangSC-Medium;
+        font-size: 28rpx;
+        color: #FFFFFF;
+        border-radius: 20px;
+        border: 1px solid #fff;
+        background-color: #000;
+    }
+    .user_sex {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        background-color: #2c2c2c;
+        width: 86rpx;
+        height: 40rpx;
+        margin-left: 18rpx;
+    }
+    .sex_icon {
+        width: 26rpx;
+        height: 30rpx;
+    }
+    .sex {
+        font-family: PingFangSC-Regular;
+        font-size: 14px;
+        color: #FFFFFF;
+        margin-left:6rpx;
+
+    }
+    .user_edit_button {
+        border: 2rpx solid #FFFFFF;
+        border-radius: 32rpx;
+        width: 136rpx;
+        height: 60rpx;
+        line-height: 60rpx;
+        text-align: center;
+        font-family: PingFangSC-Regular;
+        font-size: 12px;
+        color: #FFFFFF;
+        margin-right: 36rpx;
+    }
+    .user_introduct {
+        font-family: PingFangSC-Regular;
+        font-size: 12px;
+        color: #F1F1F1;
+        margin-top: 20rpx;
+    }
+</style>

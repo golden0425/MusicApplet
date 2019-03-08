@@ -1,0 +1,355 @@
+<template>
+  <view class='container'>
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <!-- chat list -->
+    <view class='chat_list_box' style='margin-top:{{navH + 90}}rpx;'>
+
+      <repeat for="{{list}}" key="index" index="index" item="item">
+        <view class='chat_list_item' wx:if="{{isOpenAll}}" @tap.stop='showOtherInfo({{item}})'>
+          <image src='{{item.thumbHeadImg}}' class='item_avatar' mode='aspectFill'/>
+          <view class='item_content'>
+            <view class='item_username'>{{item.nickname}}</view>
+            <view class='item_message' wx:if="{{item.subTitle}}">{{item.subTitle}}</view>
+          </view>
+          <view>
+              <view class='item_state_normal' wx:if='{{!item.follow}}' @tap.stop='followAction({{index}})'> 关注</view>
+              <!-- <view class='item_state'> 已关注 </view> -->
+             <view class='item_state' wx:elif='{{item.follow && item.userId !== uid}}' > 已关注 </view>
+
+          </view>
+          <view class='item_line'></view>
+        </view>
+        <view wx:else>
+          <view class='chat_list_item' wx:if="{{item.type === 1 && type === 1}}" @tap.stop='showOtherInfo({{item}})'>
+            <image src='{{item.thumbHeadImg}}' class='item_avatar' />
+            <view class='item_content'>
+              <view class='item_username'>{{item.nickname}}</view>
+              <view class='item_message' wx:if="{{item.subTitle}}">{{item.subTitle}}</view>
+            </view>
+            <view>
+              <view class='item_state_normal' wx:if='{{!item.follow && item.userId !== uid}}' @tap.stop='followAction({{index}})'> 关注</view>
+              <view class='item_state' wx:elif='{{item.follow && item.userId !== uid}}' > 已关注 </view>
+            </view>
+            <view class='item_line'></view>
+          </view>
+        </view>
+     
+      </repeat>
+    </view>
+    <view class='check_more' wx:if='{{type === 1 && !isOpenAll && list.length > 0 }}' @tap.stop='showmore'>点击查看更多粉丝</view>
+
+      <view class='empty_box' wx:if='{{list.length <= 0}}'>暂无数据</view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import nav from '@/components/nav'
+  import PaginationModel from '@/models/paginationModel'
+  const pageMode = new PaginationModel()
+  import api from '@/api/api'
+  export default class follower extends wepy.page {
+    config = {
+      enablePullDownRefresh: true
+    }
+    components = {
+      nav
+    }
+    data = {
+      navH: 0,
+      title: '关注',
+      type: 0, // 0 我的关注 1 我的粉丝 2 他的关注 3 他的粉丝 4歌手排行
+      uid: null,
+      list: null,
+      isOpenAll: true // 是否查看全部
+    };
+    events = {
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      }
+    }
+    methods = {
+      showOtherInfo(item) {
+        const uid = item.userId
+        const userId = wepy.getStorageSync('userId')
+        if (uid !== userId) {
+          wepy.navigateTo({url: `/pages/userInfo/others?userId=${item.userId}`})
+        } else {
+          console.log('自己不能跳转自己')
+        }
+      },
+      async unfollowAction(index) {
+        const item = this.list[index]
+        const res = await api.unfollowUser({
+          id: item.userId
+        })
+        if (res.code === 0) {
+          wepy.showToast({
+            title: '已取消关注',
+            icon: 'none',
+            duration: 2000,
+            mask: true
+          })
+          item.follow = false
+        }
+        wepy.setStorageSync('refreshUserInfo', true)
+        this.$apply()
+      },
+      async followAction(index) {
+        const item = this.list[index]
+        const res = await api.followUser({
+          id: item.userId
+        })
+        if (res.code === 0) {
+          wepy.showToast({
+            title: '关注成功',
+            icon: 'none',
+            duration: 2000,
+            mask: true
+          })
+          item.follow = true
+        }
+        wepy.setStorageSync('refreshUserInfo', true)
+        this.$apply()
+      },
+      showmore() {
+        this.isOpenAll = true
+        this.$apply()
+      }
+    };
+    async onLoad(option) {
+      this.navH = this.$parent.globalData.navHeight
+      if (option.type) {
+        this.type = parseInt(option.type)
+      }
+      if (this.type === 1) {
+        this.isOpenAll = false
+      }
+      if (option.uid) {
+        this.uid = option.uid
+      }
+      switch (this.type) {
+        case 0:
+          this.title = '我的关注'
+          break
+        case 1:
+          this.title = '我的粉丝'
+          break
+        case 2:
+          this.title = 'Ta的关注'
+          break
+        case 3:
+          this.title = 'Ta的粉丝'
+          break
+        case 4:
+          this.title = '歌手排行'
+          break
+        default:
+          break
+      }
+  
+      await this.fetchData()
+      if (this.type === 1) {
+        const res = await this.clearZanMessage()
+        if (res.code === 0) {
+          wepy.removeStorageSync('followNum')
+        }
+      }
+      this.$apply()
+    }
+    onPullDownRefresh = async() => {
+      this.fetchData()
+    };
+    onReachBottom = async() => {
+      this.fecthMoreData()
+    }
+    async fetchData() {
+      this.list = []
+      pageMode.currentPage = 1
+      let res = null
+      if (this.type === 0 || this.type === 2) {
+        res = await pageMode.pullToRefresh(api.fetchFollowList, {
+          toId: this.uid
+        })
+      } else if (this.type === 1 || this.type === 3) {
+        res = await pageMode.pullToRefresh(api.fetchFansList, {
+          toId: this.uid
+        })
+      }
+      wepy.stopPullDownRefresh()
+      if (res.code === 0) {
+        if (res.list) {
+          this.list = this.list.concat(res.list)
+          if (this.list.length > 0) {
+            const item = this.list[0]
+            if (item.type === 2 && this.type === 1) {
+              this.isOpenAll = true
+            }
+          }
+        }
+      }
+      this.$apply()
+    };
+    async fecthMoreData() {
+      if (pageMode.checkLoadMore(this.list)) {
+        let res = null
+        if (this.type === 0 || this.type === 2) {
+          res = await pageMode.more(api.fetchFollowList, {
+            toId: this.uid
+          })
+        } else if (this.type === 1 || this.type === 3) {
+          res = await pageMode.more(api.fetchFansList, {
+            toId: this.uid
+          })
+        }
+        if (res.code === 0) {
+          if (res.list) {
+            this.list = this.list.concat(res.list)
+          }
+        }
+      }
+      this.$apply()
+    }
+  
+    async clearZanMessage() {
+      return await api.clearUnreadMessage({
+        query: {
+          type: 1
+        }
+      })
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    min-height: 100vh;
+    justify-content: flex-start;
+    background-color: #000000;
+  }
+  .buttons_container {
+    margin-top: 20rpx;
+    width: 686rpx;
+    height: 140rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    font-family: PingFangSC-Regular;
+    font-size: 32rpx;
+    color: #F1F1F1;
+  }
+  .white_font {
+    color: #fff;
+  }
+  .yellow_font {
+    color: #FFDC51;
+  }
+  .button_top {
+    width: 208rpx;
+    height: 128rpx;
+    line-height: 128rpx;
+    text-align: center;
+    color: #fff;
+    border-radius: 20rpx;
+    background-color: #2C2C2C;
+  }
+  .chat_list_box {
+    width: 100%;
+    margin-top: 40rpx;
+  }
+  .chat_list_item {
+    width: 100%;
+    height: 152rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+  }
+  .item_avatar {
+    width: 108rpx;
+    height: 108rpx;
+    margin-left: 32rpx;
+    border-radius: 50%;
+  }
+  .item_content {
+    display: flex;
+    margin-left: 32rpx;
+    flex-direction: column;
+    align-content: center;
+    justify-content: flex-start;
+    width: 400rpx;
+    .item_username {
+      font-family: PingFangSC-Medium;
+      font-size: 16px;
+      color: #FFFFFF;
+      width: 300rpx;
+    }
+    .item_message {
+      font-family: PingFangSC-Regular;
+      font-size: 14px;
+      color: #8A8A8A;
+      width: 380rpx;
+      margin-top: 8rpx;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis; 
+      height: 44rpx;
+    }
+  }
+  .item_state_normal {
+    width: 148rpx;
+    height: 72rpx;
+    background: #FFDC51;
+    border-radius: 38rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+    line-height: 72rpx;
+    text-align: center;
+  }
+  .item_state {
+    width: 148rpx;
+    height: 72rpx;
+    color: #cccccc;
+    border-radius: 38rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    background: #2C2C2C;
+    line-height: 72rpx;
+    text-align: center;
+  }
+  .item_line {
+    width: 578rpx;
+    height: 2rpx;
+    position: absolute;
+    right: 0rpx;
+    bottom: 0rpx;
+    background-color: #212121;
+  }
+  .arr_grey {
+    width: 16rpx;
+    height: 28rpx;
+    margin-left: 102rpx;
+  }
+  .check_more {
+    width: 442rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    border: 2rpx solid #4A4A4A;
+    border-radius: 74rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #FFFFFF;
+    text-align: center;
+    margin-top: 64rpx;
+  }
+    .empty_box {
+        color: #acacac;
+        margin-top: 300rpx;
+        font-size: 24rpx;
+    }
+</style>

@@ -1,0 +1,646 @@
+<!-- 待唱歌单  -->
+<template>
+  <view class='container'>
+    <view class='music_top'>
+      <view class='blur-container'>
+        <image src="{{ currentIndex < 0 ? userInfo.headImg : cover}}" lazy-load='true' class='blur_icon' mode='aspectFill' />
+        <view class='blur_gray'></view>
+      </view>
+      <view class='music_top_tips'>{{nickname}}的专属想唱歌单</view>
+      <view class='rank_box' @tap.stop='showSingerList' wx:if='{{userInfo.myRanking}}'>
+        <view class='rank_box_title'>歌手排名</view>
+        <view class='rank_box_value'>{{userInfo.myRanking}}</view>
+        <image class='arr_r_b' src='../assets/arr_r_b.png' />
+      </view>
+      <view class='rank_box' @tap.stop='showSingerList' wx:else>
+        <view class='rank_box_title'>暂无排名</view>
+      </view>
+      <view class='music_icon_box'>
+        <image class='music_icon' src='{{userInfo.headImg}}' @tap.stop='showUserInfo' mode='aspectFill' />
+        <view class='user_level' wx:if='{{userInfo.levelName && userInfo.userLevel}}'>{{userInfo.levelName}} {{userInfo.userLevel}}</view>
+      </view>
+    </view>
+    <!-- 播放按钮 -->
+    <view class='play_order_box' @tap.stop='playAudio'>
+      <image class='play_order_icon' src='../assets/wish_play.png' />
+      <view class='play_order_txt'>顺序播放</view>
+    </view>
+    <view class='challenge_count_box'>
+      <view class='challenge_count' wx:if='{{list.length>0}}'>
+        已挑战成功{{userInfo.count}}首歌
+      </view>
+    </view>
+    <!-- audio list -->
+    <view style='position: relative;margin-top:30rpx;'>
+      <repeat for="{{list}}" key="index" index="index" item="item">
+        <view class='music_box' bindtouchstart="touchS" bindtouchmove="touchM" bindtouchend="touchE" data-index="{{index}}">
+          <view class='music_item' style="{{ indexs===index?item.txtStyle:'left:0rpx'}}" @tap.stop='practiceSing({{index}})'>
+            <view class='music_item_index'>{{index + 1}}</view>
+            <image class='music_corver' mode="aspectFill" src="{{item.gifImage + '?x-oss-process=image/resize,m_lfit,h_128,w_128'}}" @tap.stop='startIndex({{index}})' />
+            <image class='music_play_btn' wx:if="{{currentIndex === index && !playState}}" src="../assets/sing_play_btn_yo.png" @tap.stop='startIndex({{index}})' />
+            <view class='music_content'>
+              <view class='music_name' style="color:{{index === currentIndex ? '#FFDC51' : '#fff'}}">{{item.name}}</view>
+              <view class='music_auth' style="color:{{index === currentIndex ? '#FFDC51' : '#fff'}}">{{item.author}}</view>
+              <view class='music_count' wx:if='{{item.followNum}}'>本周{{item.followNum}}人跟唱过</view>
+              <view class='music_count' wx:else>本周暂无人跟唱</view>
+            </view>
+            <view class='music_follow'>
+              <image class='music_follow_icon' src='../assets/tb_sing_clicked.png' />
+              <view class='music_follow_tips'>跟唱</view>
+            </view>
+          </view>
+          <view class="inner">
+            <view></view>
+            <image class='del_icon' src='../assets/delet_w.png' @tap.stop='delItem({{index}})' />
+          </view>
+        </view>
+      </repeat>
+    </view>
+    <view class='empty_container' wx:if='{{list.length <=0}}'>
+      <image class='empty_icon' src='../assets/empty.png' />
+      <view class='empty_title'>你的歌单空空如也~~快去跟唱吧</view>
+    </view>
+    <palletMask wx:if='{{!isShowedAddMyMin && list.length > 0}}' />
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import api from '@/api/api'
+  import PaginationModel from '@/models/paginationModel'
+  import AudioManager from '@/models/audioManager'
+  const pageMode = new PaginationModel()
+  import PracticeAudio from '@/models/practiceAudio'
+  import palletMask from '@/components/Add2PalletMask'
+  let player = new PracticeAudio()
+  export default class practiceSing extends wepy.page {
+    config = {
+      enablePullDownRefresh: true
+    };
+    data = {
+      delBtnWidth: 180,
+      startX: 0,
+      list: [],
+      more: true,
+      currentIndex: -1,
+      nickname: '',
+      userInfo: '',
+      cover: '',
+      playState: 0,
+      indexs: -1,
+      isShowedAddMyMin: true
+    };
+    components = {
+      palletMask
+    };
+    methods = {
+      showSingerList() {
+        wepy.navigateTo({
+          url: `/pages/rank/singerRank`
+        })
+      },
+      showUserInfo() {
+        wx.switchTab({
+          url: '/pages/profile'
+        })
+      },
+      async delItem(index) {
+        let backMusic = this.$parent.globalData.audioManager
+        backMusic.assign(this.list)
+        let music = this.list[index]
+        if (this.currentIndex === index) {
+          const res = await api.delSongFollow({
+            query: {
+              followId: music.followId
+            }
+          })
+          if (res.code === 0) {
+            this.list.splice(index, 1)
+            backMusic.start(index)
+            this.cover = this.list[index].gifImage
+          }
+        } else {
+          const res = await api.delSongFollow({
+            query: {
+              followId: music.followId
+            }
+          })
+          if (res.code === 0) {
+            if (index < this.currentIndex) {
+              this.currentIndex = this.currentIndex - 1
+              this.list.splice(index, 1)
+            } else {
+              this.list.splice(index, 1)
+            }
+          }
+        }
+        this.$apply()
+      },
+      practiceSing(index) {
+        let item = this.list[index]
+        wepy.navigateTo({
+          url: `/pages/subHome/sing?ideaId=${item.ideaId}`
+        })
+      },
+      startIndex(index) {
+        let backMusic = this.$parent.globalData.audioManager
+        backMusic.assign(this.list)
+        this.cover = this.list[index].gifImage
+        if (index === this.currentIndex && this.playState) {
+            // 暂停
+          backMusic.pause()
+          this.playState = 0
+        } else {
+          backMusic.start(index)
+          this.currentIndex = index
+            // player.setData(this.list)
+            // player.start(index)
+          this.$parent.event.emit('onBackgroundTap')
+          this.playState = 1
+        }
+        this.initMusic()
+        this.$apply()
+      },
+      playAudio() {
+        let backMusic = this.$parent.globalData.audioManager
+        backMusic.assign(this.list)
+        backMusic.start(0)
+        this.currentIndex = 0
+        this.cover = this.list[0].gifImage
+          // player.setData(this.list)
+          // player.start(0)
+        this.$parent.event.emit('onBackgroundTap')
+        this.playState = 1
+        this.initMusic()
+        this.$apply()
+      },
+      touchS(e) {
+        if (e.touches.length === 1) {
+            // 设置触摸起始点水平方向位置
+          this.startX = e.touches[0].clientX
+          this.indexs = e.currentTarget.dataset.index
+          this.$apply()
+        }
+      },
+      touchM(e) {
+        if (e.touches.length === 1) {
+            // 手指移动时水平方向位置
+          var moveX = e.touches[0].clientX
+            // 手指起始点位置与移动期间的差值
+          var disX = this.startX - moveX
+          var delBtnWidth = this.delBtnWidth
+          var txtStyle = ''
+          if (disX === 0 || disX < 0) { // 如果移动距离小于等于0，文本层位置不变
+            txtStyle = 'left:0rpx'
+          } else if (disX > 0) { // 移动距离大于0，文本层left值等于手指移动距离
+            txtStyle = 'left:-' + disX + 'rpx'
+            if (disX >= delBtnWidth) {
+                // 控制手指移动距离最大值为删除按钮的宽度
+              txtStyle = 'left:-' + delBtnWidth + 'rpx'
+            }
+          }
+            // 获取手指触摸的是哪一项
+          var index = e.currentTarget.dataset.index
+          var list = this.list
+          if (index >= 0) {
+            list[index].txtStyle = txtStyle
+              // 更新列表的状态
+          }
+        }
+      },
+      touchE(e) {
+        if (e.changedTouches.length === 1) {
+            // 手指移动结束后水平位置
+          var endX = e.changedTouches[0].clientX
+            // 触摸开始与结束，手指移动的距离
+          var disX = this.startX - endX
+          var delBtnWidth = this.delBtnWidth
+            // 如果距离小于删除按钮的1/2，不显示删除按钮
+          var txtStyle = disX > delBtnWidth / 2 ? 'left:-' + delBtnWidth + 'rpx' : 'left:0rpx'
+            // 获取手指触摸的是哪一项
+          var index = e.currentTarget.dataset.index
+          var list = this.list
+          if (index >= 0) {
+            list[index].txtStyle = txtStyle
+              // 更新列表的状态
+            this.list = list
+            this.$apply()
+          }
+        }
+      }
+    };
+    events = {
+      dimissMinParagramTips() {
+        this.isShowedAddMyMin = true
+        this.$parent.globalData.isShowedAddMyMin = true
+        this.$apply()
+      }
+    };
+    initMusic() {
+      let backMusic = this.$parent.globalData.audioManager
+      const that = this
+      const onUpdate = (index) => {
+        that.displayIndex(index)
+      }
+      backMusic.setUpdateFuc(onUpdate)
+    };
+    displayIndex(index) {
+      if (this.list) {
+        if (this.currentIndex <= this.list.length - 1) {
+         // var next = this.currentIndex + 1
+          if (this.currentIndex !== index) {
+            this.currentIndex = index
+            this.cover = this.list[index].gifImage
+            // this.translationLyric = this.translationLyricArr[next]
+          }
+        }
+      }
+      this.$apply()
+    }
+    watch = {
+      async currentIndex(newvalue, oldvalue) {
+        let backMusic = this.$parent.globalData.audioManager
+        if (newvalue === this.list.length - 1) {
+          console.log(this.more)
+          if (this.more) {
+            let res = await pageMode.more(api.followSongList)
+            if (res.code === 0) {
+              if (res.followList) {
+                this.more = pageMode.checkLoadMore(res.followList)
+                this.list = this.list.concat(res.followList)
+                backMusic.assign(this.list)
+              }
+            }
+          } else {
+            console.log(123)
+            backMusic.setCircle()
+          }
+        }
+        // if (!this.more) {
+        //   backMusic.setCircle()
+        // } else {
+        //   backMusic.closeCircle()
+        // }
+        this.$apply()
+      }
+    }
+    computed = {};
+    onLoad() {
+      this.nickname = wepy.getStorageSync('nickname')
+      let that = this
+      const onIndexFunc = (index) => {
+        that.currentIndex = index
+        let item = this.list[index]
+        that.cover = item.gifImage
+        that.$apply()
+      }
+      this.$parent.globalData.audioManager = new AudioManager()
+      player.setIndexFunc(onIndexFunc)
+      this.initListener()
+    }
+    initListener() {
+          //  暂停首页歌曲播放
+      this.$parent.event.offEvent('stopSubPagePlayer')
+      this.$parent.event.subscribeOn(
+            'stopSubPagePlayer',
+            this.stopSubPagePlayer.bind(this)
+          )
+    };
+    stopSubPagePlayer() {
+      let backMusic = this.$parent.globalData.audioManager
+      this.playState = 0
+      backMusic.stop()
+    };
+    onShow() {
+      this.isShowedAddMyMin = this.$parent.globalData.isShowedAddMyMin
+      console.log('practiceSing: isShowedAddMyMin is : ', this.isShowedAddMyMin)
+      this.indexs = -1
+      this.$parent.globalData.loveCount = 0
+      wx.removeTabBarBadge({
+        index: 1
+      })
+      this.fetchUnreadMessage()
+      this.fetchData()
+    };
+    onPullDownRefresh = async() => {
+      this.fetchData()
+    };
+    onReachBottom = async() => {
+      if (this.more) {
+        this.fecthMoreData()
+      }
+    };
+    onShareAppMessage(res) {
+      var inviteFriend = this.$parent.globalData.shareInfo.inviteFriend
+      return {
+        title: inviteFriend.text,
+        path: '/pages/index?uid=' + wepy.getStorageSync('userId'),
+        imageUrl: inviteFriend.shareImg,
+        success: function(res) {}
+      }
+    };
+    async fetchData() {
+      pageMode.currentPage = 1
+      let res = await pageMode.pullToRefresh(api.followSongList)
+      wepy.stopPullDownRefresh()
+      if (res.code === 0) {
+        this.userInfo = res.userInfo
+        if (res.followList.length > 0) {
+          if (this.list.length > 0 && this.list[0].ideaId === res.followList[0].ideaId) {
+            return
+          }
+          this.list = []
+          this.list = this.list.concat(res.followList)
+          let item = this.list[0]
+          this.currentIndex = 0
+          this.cover = item.gifImage
+        }
+      }
+      this.$apply()
+    };
+    async fecthMoreData() {
+      let res = await pageMode.more(api.followSongList)
+      let backMusic = this.$parent.globalData.audioManager
+      if (res.code === 0) {
+        if (res.followList) {
+          this.more = pageMode.checkLoadMore(res.followList)
+          this.list = this.list.concat(res.followList)
+          backMusic.assign(this.list)
+        }
+      }
+      this.$apply()
+    };
+    async fetchUnreadMessage() {
+          // const msgCount = await im.getUnreadMsgCount()
+      const res = await api.fetchUnreadMessage()
+      if (res.code === 0) {
+        const {
+              followNum,
+              pointNum
+            } = res
+        wepy.setStorageSync('followNum', followNum)
+        wepy.setStorageSync('pointNum', pointNum)
+        this.tabBarBadgeChangeAction(followNum + pointNum)
+      }
+    };
+    tabBarBadgeChangeAction(opt) {
+      if (opt > 0 && opt <= 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${opt}`
+        })
+      } else if (opt > 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${'99+'}`
+        })
+      } else {
+        wx.removeTabBarBadge({
+          index: 3
+        })
+      }
+    }
+      };
+</script>
+
+<style lang="less" scoped>
+  .container {
+    min-height: 100vh;
+    justify-content: flex-start;
+    position: relative;
+  }
+  .music_item {
+    width: 100vw;
+    height: 204rpx;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    border-bottom: 2rpx solid #2c2c2c;
+    position: relative;
+    z-index: 5;
+    background: #000;
+  }
+  .music_item_index {
+    font-family: PingFangSC-Semibold;
+    font-size: 28rpx;
+    color: #8A8A8A;
+    text-align: right;
+    width: 40rpx;
+    margin-right: 20rpx;
+  }
+  .music_corver {
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: 12rpx;
+  }
+  .music_content {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex-direction: column;
+    margin-left: 22rpx;
+    width: 368rpx;
+    .music_name {
+      font-family: PingFangSC-Medium;
+      font-size: 32rpx;
+    }
+    .music_auth {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+    }
+    .music_count {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 16rpx;
+    }
+  }
+  .music_follow_icon {
+    width: 34rpx;
+    height: 34rpx;
+  }
+  .music_follow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 160rpx;
+    height: 144rpx;
+    .music_follow_tips {
+      font-family: PingFangSC-Regular;
+      font-size: 24rpx;
+      color: #FFDC51;
+      margin-left: 8rpx;
+    }
+  }
+  .music_icon {
+    width: 188rpx;
+    height: 188rpx;
+    border-radius: 50%;
+  }
+  .music_top {
+    width: 100%;
+    height: 456rpx;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .music_top_tips {
+    position: absolute;
+    font-family: PingFangSC-Semibold;
+    font-size: 34rpx;
+    color: #FFFFFF;
+    top: 64rpx;
+    left: 32rpx;
+  }
+  .user_level {
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    height: 36rpx;
+    background: #73CFE5;
+    border-radius: 18rpx;
+    padding: 0 16rpx;
+    margin-top: -10rpx;
+  }
+  .music_icon_box {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+    margin-top: 60rpx;
+  }
+  .inner {
+    background-color: #000;
+    width: 180rpx;
+    text-align: center;
+    line-height: 204rpx;
+    color: #fff;
+    height: 204rpx;
+    position: absolute;
+    right: 0;
+    z-index: 4;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .music_box {
+    position: relative;
+    z-index: 5;
+  }
+  .del_icon {
+    width: 72rpx;
+    height: 72rpx;
+  }
+  .play_order_box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    width: 188rpx;
+    height: 72rpx;
+    border-radius: 36rpx;
+    background: #fff;
+    top: 420rpx;
+    border: 2rpx solid #000;
+    .play_order_txt {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #303030;
+      margin-left: 10rpx;
+    }
+    .play_order_icon {
+      width: 38rpx;
+      height: 30rpx;
+    }
+  }
+  .blur_icon {
+    position: absolute;
+    width: 100%;
+    height: 456rpx;
+    left: 0rpx;
+    top: 0rpx; // -webkit-filter: blur(20rpx);
+    // -moz-filter: blur(20rpx);
+    // -ms-filter: blur(20rpx);
+    // -o-filter: blur(20rpx);
+    // filter: blur(20rpx);
+  }
+  .blur_gray {
+    width: 100%;
+    height: 456rpx;
+    background-color: rgba(0, 0, 0, 0.27);
+    left: 0rpx;
+    top: 0rpx;
+    position: absolute;
+  }
+  .challenge_count_box {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 80rpx;
+  }
+  .challenge_count {
+    color: #fff;
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #D2D2D2;
+    margin-left: 30rpx;
+  }
+  .rank_box {
+    width: 216rpx;
+    height: 56rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 80rpx;
+    position: absolute;
+    background: rgba(255, 255, 255, 0.70);
+    left: 0rpx;
+    top: 60rpx;
+    border-radius: 0 28rpx 28rpx 0;
+  }
+  .rank_box_title {
+    font-family: PingFangSC-Regular;
+    font-size: 24rpx;
+    color: #303030;
+  }
+  .rank_box_value {
+    font-family: PingFangSC-Medium;
+    font-size: 36rpx;
+    color: #FE405D;
+    margin-left: 12rpx;
+  }
+  .empty_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 100rpx;
+    .empty_icon {
+      width: 172rpx;
+      height: 166rpx;
+    }
+    .empty_title {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 36rpx;
+    }
+  }
+  .music_play_btn {
+    position: absolute;
+    width: 52rpx;
+    height: 52rpx;
+    left: 110rpx;
+  }
+  .arr_r_b{
+    width: 16rpx;
+    height: 25rpx;
+    margin-left: 24rpx;
+  }
+</style>

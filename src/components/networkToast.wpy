@@ -1,0 +1,102 @@
+<!--  -->
+<template>
+  <view class='network_container'>
+      <view class='white_box'>
+          <view class='network_tips' style='margin-top:88rpx;'>{{first}}</view>
+          <view class='network_tips'>{{second}}</view>
+          <view class='network_quite' @tap.stop='closeNetDialog'>朕知道了，退下</view>
+          <image class='close_btn' src='../assets/dialog_close_grey.png' @tap.stop='closeNetDialog'/>
+      </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+export default class Example extends wepy.component {
+    props = {
+      first: {
+        type: String,
+        default: ''
+      },
+      second: {
+        type: String,
+        default: ''
+      }
+    };
+
+    data = {};
+
+    components = {};
+
+    methods = {
+      closeNetDialog() {
+        this.$emit('dismissNetDialog')
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() { };
+
+    onShow() { };
+  }
+</script>
+
+<style lang="less" scoped>
+.network_container {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+.white_box {
+    background-color: #ffffff;
+    border-radius: 20rpx;
+    width: 554rpx;
+    height: 384rpx;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    position: relative;
+}
+.network_tips {
+    font-family: PingFangSC-Medium;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: 0;
+    text-align: center;
+}
+.network_quite {
+    font-family: PingFangSC-Regular;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: -0.41px;
+    text-align: center;
+    width: 486rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    background: #FFDC51;
+    border-radius: 44rpx;
+    margin-top: 64rpx;
+}
+.close_btn {
+    width: 32rpx;
+    height: 32rpx;
+    position: absolute;
+    right: 0rpx;
+    top: 0rpx;
+    padding: 20rpx;
+}
+</style>

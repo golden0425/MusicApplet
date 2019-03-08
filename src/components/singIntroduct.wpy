@@ -1,0 +1,61 @@
+<template>
+    <view class="sing_introduct_c">
+        <view class="mask" @tap.stop="close"/>
+        <image mode="aspectFill" src="https://hzweimo.oss-cn-beijing.aliyuncs.com/home_popup.png" class="introduct_img" />
+        <image class="close_img" src="/assets/dialogue_close.png" @tap.stop="close"/>
+    </view>    
+</template>
+<script>
+import wepy from 'wepy'
+export default class singIntroduct extends wepy.component {
+  data= {
+
+  }
+  onLoad() {
+    const i = wepy.getStorageSync('singIntroduct')
+    if (!i) {
+      wepy.setStorageSync('singIntroduct', 'true')
+      // this.$emit('onSingIntroduct', true)
+      this.$emit('showSingIntroduct', true)
+    }
+  }
+  methods = {
+    close() {
+      // this.$emit('onSingIntroduct', false)
+      this.$emit('showSingIntroduct', false)
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.sing_introduct_c {
+  width: 100%;
+  height: 100vh;
+  position: fixed;
+  z-index: 10000;
+  .mask {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.56);
+    position: absolute;
+  }
+  .introduct_img {
+      width: 620rpx;
+      height: 852rpx;
+      position: absolute;
+      top: 222rpx;
+      left: 50%;
+      margin-left: -310rpx;
+      border: 6rpx solid #fff;
+      border-radius: 40rpx;
+  }
+  .close_img {
+    width: 68rpx;
+    height: 68rpx;
+    position: fixed;
+    left: 50%;
+    margin-left: -34rpx;
+    bottom: 130rpx;
+  }
+}
+</style>

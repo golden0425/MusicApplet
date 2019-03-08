@@ -1,0 +1,363 @@
+<template>
+    <view class='container'>
+        <view class='top_theme'>
+             <view class='theme_txt'>消息</view>
+        </view>
+        
+        <view class='buttons_container' style='margin-top:56rpx;'>
+            <view class='button_top' @tap='showFans'>粉丝
+                <view class='message_count' wx:if='{{followNum}}'>{{followNum}}</view>
+            </view>
+            <view class='button_top' @tap='zanAction'>通知               
+                 <view class='message_count' style='top:28rpx;right:38rpx;' wx:if='{{pointNum}}'>{{pointNum}}</view>
+            </view>
+            <view class='button_top yellow_font' style='color:#FFDC51;'>分享
+                 <button class='shareButton' open-type='share'></button>
+            </view>
+        </view>
+        <!-- chat list -->
+        <view class='chat_list_box'>
+            <repeat for="{{messages}}" key="index" index="index" item="item">
+                <view class='chat_list_item' @tap='showChat2C({{item}})'>
+                    <image src='{{item.C2cImage}}' class='item_avatar' mode='aspectFill' @tap.stop='showOtherProfile({{item}})' />
+                    <view class='item_content'>
+                        <view class='item_username'>{{item.C2cNick}}</view>
+                        <view class='item_message'>{{item.MsgShow.data}}</view>
+                    </view>
+                    <view class='item_message'>
+                        <!-- <view class='item_date'>3天前</view> -->
+                        <view class='item_message_count' wx:if='{{item.UnreadMsgCount}}'>{{item.UnreadMsgCount}}</view>
+                    </view>
+                    <view class='item_line'></view>
+                </view>
+            </repeat>
+        </view>
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import api from '@/api/api'
+
+    export default class chatList extends wepy.page {
+      components = {
+    
+      }
+      data = {
+        messages: [],
+        followNum: 0,
+        pointNum: 0
+      };
+      events = {
+        back2TopPage() {
+          wepy.navigateBack({
+            delta: 1
+          })
+        }
+      }
+      methods = {
+        showOtherProfile(item) {
+          const uid = item.To_Account
+          wepy.navigateTo({ url: `/pages/userInfo/others?userId=${uid}` })
+        },
+        zanAction() {
+          console.log('赞👍')
+          this.pointNum = 0
+          this.tabBarBadgeChangeAction(this.followNum + this.pointNum)
+          wepy.navigateTo({ url: `/pages/chat/zanList` })
+          this.$apply()
+        },
+        showFans() {
+          const userId = wepy.getStorageSync('userId')
+          this.followNum = 0
+          this.tabBarBadgeChangeAction(this.followNum + this.pointNum)
+          wepy.navigateTo({ url: `/pages/userInfo/follower?type=1&uid=${userId}` })
+          this.$apply()
+        },
+        showChat2C(item) {
+          const uid = item.To_Account
+          wepy.navigateTo({ url: `/pages/chat/chat2c?uid=${uid}` })
+        }
+      };
+      async onLoad() {
+        // this.$parent.event.offEvent('onUnredMsgNotify')
+      //   this.$parent.event.subscribeOn(
+      //   'onUnredMsgNotify',
+      //   this.onMsgNotify.bind(this)
+      // )
+        // this.navH = this.$parent.globalData.navHeight
+
+        // await this.refreshData()
+  }
+      // onMsgNotify(msgs) {
+      //   this.refreshData()
+      // };
+      onShow() {
+        this.followNum = wepy.getStorageSync('followNum')
+        this.pointNum = wepy.getStorageSync('pointNum')
+        console.log('followNum position', this.followNum, this.pointNum)
+        this.$apply()
+        this.fetchUnreadMessage()
+      }
+      // async refreshData() {
+      //   const that = this
+      //   const res = await im.getRecentContactList()
+
+      //   const {
+      //           ErrorCode,
+      //           SessionItem
+      //       } = res
+      //   console.log(res)
+      //   if (ErrorCode === 0 && SessionItem !== undefined) {
+      //     that.messages = SessionItem
+      //   }
+      //   console.log(SessionItem)
+      //   that.dealData()
+      //   const allSession = await im.getUnreadMsg()
+      //   that.showUnreadCount(allSession) // 处理未读消息数
+      //   that.$apply()
+      // };
+      // async dealData() {
+      //   if (this.messages.length === 0) return
+      //   let u = []
+      //   let m = []
+      //   for (let index = 0; index < this.messages.length; index++) {
+      //     const element = this.messages[index]
+    
+      //     if (element.Type === 1) {
+      //       let MsgShow = element.MsgShow
+      //       let newMsg = MsgShow.replace(/&quot;/g, '"')
+    
+      //       let message = JSON.parse(newMsg)
+      //       console.log('message', message)
+      //       element.MsgShow = message
+      //       element.lastDate = timeUtil.getRecentChatDate(element.MsgTimeStamp)
+      //       let res = await im.searchProfileByUserId(element.To_Account)
+
+      //       let tres = Object.assign({}, res)
+      //       u.push(tres)
+      //       m.push(element)
+      //     }
+      //   }
+      //   // const u = await Promise.all(userInfo) // 获取最新联系人头像
+      //   for (let index = 0; index < u.length; index++) {
+      //     const element = u[index]
+      //     const mesgItem = m[index]
+      //     mesgItem.C2cImage = element.avatarUrl
+      //     mesgItem.C2cNick = element.nick
+      //   }
+      //   this.messages = m
+      //   this.$apply()
+      // }
+      // showUnreadCount(allSession) {
+      //   for (let index = 0; index < this.messages.length; index++) {
+      //     let element = this.messages[index]
+      //     for (const i in allSession) {
+      //       const sess = allSession[i]
+      //       const count = sess.unread()
+      //       const sessId = sess.id()
+      //       if (element.To_Account === sessId) {
+      //         element.UnreadMsgCount = count
+      //       }
+      //     }
+      //   }
+      //   this.$apply()
+      // }
+
+  onShareAppMessage(res) {
+        var inviteFriend = this.$parent.globalData.shareInfo.inviteFriend
+        return {
+          title: inviteFriend.text,
+          path: '/pages/index?uid=' + wepy.getStorageSync('userId'),
+          imageUrl: inviteFriend.shareImg,
+          success: function(res) {}
+        }
+  }
+      async fetchUnreadMessage() {
+        const res = await api.fetchUnreadMessage()
+        if (res.code === 0) {
+          const { followNum, pointNum } = res
+          this.followNum = followNum
+          this.pointNum = pointNum
+          wepy.setStorageSync('followNum', followNum)
+          wepy.setStorageSync('pointNum', pointNum)
+          this.tabBarBadgeChangeAction(followNum + pointNum)
+          this.$apply()
+        }
+      }
+      tabBarBadgeChangeAction(opt) {
+        if (opt > 0 && opt <= 99) {
+          wx.setTabBarBadge({
+            index: 3,
+            text: `${opt}`
+          })
+        } else if (opt > 99) {
+          wx.setTabBarBadge({
+            index: 3,
+            text: `${'99+'}`
+          })
+        } else {
+          wx.removeTabBarBadge({
+            index: 3
+          })
+        }
+      }
+    }
+</script>
+
+<style lang="less" scoped>
+    .container {
+        min-height: 100vh;
+        justify-content: flex-start;
+        background-color: #000000;
+    }
+    .buttons_container {
+        margin-top: 20rpx;
+        width: 686rpx;
+        height: 140rpx;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        font-family: PingFangSC-Regular;
+        font-size: 32rpx;
+        color: #F1F1F1;
+    }
+    .white_font {
+        color: #fff;
+    }
+    .yellow_font {
+        color: #FFDC51;
+    }
+    .button_top {
+        width: 208rpx;
+        height: 128rpx;
+        line-height: 128rpx;
+        text-align: center;
+        color: #fff;
+        border-radius: 20rpx;
+        background-color: #2C2C2C;
+        position: relative;
+    }
+    .chat_list_box {
+        width: 100%;
+        margin-top: 40rpx;
+    }
+    .chat_list_item {
+        width: 100%;
+        height: 152rpx;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        position: relative;
+    }
+    .item_avatar {
+        width: 108rpx;
+        height: 108rpx;
+        margin-left: 32rpx;
+        border-radius: 50%;
+    }
+    .item_content {
+        display: flex;
+        margin-left: 32rpx;
+        flex-direction: column;
+        align-content: center;
+        justify-content: flex-start;
+        width: 500rpx;
+        .item_username {
+            font-family: PingFangSC-Medium;
+            font-size: 16px;
+            color: #FFFFFF;
+            width: 500rpx;
+        }
+        .item_message {
+            font-family: PingFangSC-Regular;
+            font-size: 28rpx;
+            color: #8A8A8A;
+            width: 500rpx;
+            margin-top: 14rpx;
+            word-break:break-all;
+              overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis; 
+            height: 44rpx;
+        }
+    }
+    .item_message {
+        display: flex;
+        flex-direction: column;
+        align-content: center;
+        justify-content: flex-start;
+        width: 80rpx;
+        .item_date {
+            font-family: PingFangSC-Regular;
+            font-size: 26rpx;
+            color: #979797;
+        }
+        .item_message_count {
+            font-family: PingFangSC-Medium;
+            font-size: 26rpx;
+            color: #FFFFFF;
+            background: #F43530;
+            border-radius: 50%;
+            width: 44rpx;
+            height: 44rpx;
+            text-align: center;
+            line-height: 44rpx;
+            margin-top: 8rpx;
+        }
+    }
+    .item_line {
+        width: 578rpx;
+        height: 4rpx;
+        position: absolute;
+        right: 0rpx;
+        bottom: 0rpx;
+        background-color: #212121;
+    }
+    .shareButton {
+        width: 208rpx;
+        height: 128rpx;
+        position: absolute;
+        left: 0;
+        top: 0;        
+        background-color: transparent;
+    }
+    .shareButton::after {
+        border: none;
+    }
+    .message_count {
+        font-family: PingFangSC-Medium;
+        font-size: 26rpx;
+        color: #FFFFFF;
+        background: #F43530;
+        border-radius: 50%;
+        width: 44rpx;
+        height: 44rpx;
+        text-align: center;
+        line-height: 44rpx;
+        position: absolute;            
+        right: 22rpx;
+        top: 28rpx;
+    }
+     .top_theme {
+    margin-top: 54rpx;
+    margin-left: 40rpx;
+    width:700rpx;
+    height: 64rpx;
+    display: flex;
+    justify-items: flex-start;
+    align-items: center;
+    z-index: 1;
+    position: relative;
+  
+    .theme_txt {
+      font-family: PingFangSC-Medium;
+      font-size: 36rpx;
+      color: #FFFFFF;
+      margin-left: 16rpx;
+    }
+   
+  }
+</style>

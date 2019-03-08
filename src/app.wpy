@@ -1,0 +1,183 @@
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  background-color: #000000;
+}
+</style>
+
+<script>
+import '@/utils/ald/ald-stat'
+import wepy from 'wepy'
+import 'wepy-async-function'
+import Event from '@/models/event'
+
+export default class extends wepy.app {
+  config = {
+    pages: [
+      'pages/index',
+      'pages/profile',
+      'pages/practiceSing',
+      'pages/flooringPage',
+      'pages/leadingSinger',
+      'pages/chatList',
+      'pages/musicList',
+      'pages/survey'
+    ],
+    subPackages: [
+      {
+        'root': 'pages/userInfo',
+        'pages': [
+          'editUserInfo',
+          'others',
+          'editUserMedal',
+          'follower'
+        ]
+      },
+      {
+        'root': 'pages/subHome',
+        'pages': [
+          'sing',
+          'challenge',
+          'hansel'
+        ]
+      },
+      {
+        'root': 'pages/rank',
+        'pages': [
+          'singerRank',
+          'songRank',
+          'songListRank',
+          'previewMedal',
+          'oldRanking',
+          'friendMusic'
+        ]
+      },
+      {
+        'root': 'pages/chat',
+        'pages': [
+          'shareMusic',
+          'zanList'
+        ]
+      }
+    ],
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: '#000000',
+      navigationBarTitleText: 'WeChat',
+      navigationBarTextStyle: 'white',
+      navigationStyle: 'custom'
+    },
+    tabBar: {
+      'color': '#D3D3D3',  // 文字默认颜色
+      'selectedColor': '#FFDC51', // 文字被选中时的颜色
+      'backgroundColor': '#000000', // 背景色
+      'borderStyle': 'white', // TAB栏边框颜色
+      'list': [
+        {
+          'pagePath': 'pages/index',
+          'text': '首页',
+          'iconPath': '/assets/tb_home_normal.png',
+          'selectedIconPath': '/assets/tb_home_clicked.png'
+        },
+        {
+          'pagePath': 'pages/practiceSing',
+          'text': '想唱',
+          'iconPath': '/assets/tb_sing_normal.png',
+          'selectedIconPath': '/assets/tb_sing_clicked.png'
+        },
+        {
+          'pagePath': 'pages/leadingSinger',
+          'text': 'Pick',
+          'iconPath': '/assets/tb_pick_normal.png',
+          'selectedIconPath': '/assets/tb_pick_clicked.png'
+        },
+        {
+          'pagePath': 'pages/chatList',
+          'text': '消息',
+          'iconPath': '/assets/tb_msg_normal.png',
+          'selectedIconPath': '/assets/tb_msg_clicked.png'
+        },
+        {
+          'pagePath': 'pages/profile',
+          'text': '我的',
+          'iconPath': '/assets/tb_mine_normal.png',
+          'selectedIconPath': '/assets/tb_mine_clicked.png'
+        }
+      ]
+    },
+    'requiredBackgroundModes': ['audio'],
+    'debug': false
+  };
+  event = new Event();
+  globalData = {
+    userInfo: null,
+    navHeight: 0,
+    channel: '',
+    audioManager: '',
+    shareInfo: '',
+    pAudioManager: '',
+    screenHeight: 667,
+    screenWidth: 375,
+    playState: true,  // true 未播放过其他歌曲  false 播放过其他歌曲
+    loveCount: 0,
+    celectmedal: 0, // 选择徽章
+    Lvoe: false,
+    loveNum: '',
+    isGifMusicListAdded: false,
+    isMusicListAdded: false,
+    isMyPractiseAdded: false,
+    isShowedAddMyMin: true
+  };
+  constructor() {
+    super()
+    this.use('requestfix')
+    this.use('promisify')
+  }
+  onLaunch(params) {
+    if (wx.setInnerAudioOption) {
+      wx.setInnerAudioOption({
+        obeyMuteSwitch: false
+      })
+    }
+
+    wepy.setStorageSync('isShowedAddMyMin', false)
+    console.log('app scene : ', params.scene)
+    // 1089 微信聊天主界面下拉，「最近使用」栏（基础库2.2.4版本起包含「我的小程序」栏）
+    // 1001 发现栏小程序主入口，「最近使用」列表（基础库2.2.4版本起包含「我的小程序」列表）
+    if (params.scene === 1001 || params.scene === 1089) {
+      wepy.setStorageSync('isShowedAddMyMin', true)
+    }
+    this.globalData.isShowedAddMyMin = wepy.getStorageSync('isShowedAddMyMin')
+    console.log('app globalData.isShowedAddMyMin : ', this.globalData.isShowedAddMyMin)
+
+    // if (params.scene === 1103 || params.scene === 1104) {
+    //   wepy.setStorageSync('isShowedAddMyMin', true)
+    // }
+    // 获取手机系统信息
+    wx.getSystemInfo({
+      success: res => {
+        // 导航高度
+        this.globalData.navHeight = res.statusBarHeight + 46
+        this.globalData.screenHeight = res.screenHeight
+        this.globalData.screenWidth = res.screenWidth
+        this.globalData.winHeight = res.windowHeight
+      },
+      fail(err) {
+        console.log(err)
+      }
+    })
+  }
+  onShow() {
+    console.log('app onShow')
+  }
+  onHiden() {
+    console.log('app onHidden')
+  }
+  }
+
+</script>

@@ -1,0 +1,806 @@
+<!--  -->
+<template>
+    <view class='container'>
+        <view class="position" style="height:{{navH}}px" @tap.stop="back2TopPage">
+            <nav :navH.sync='navH' :title.sync='title'></nav>
+            <view class="hansel_v" style="height:{{navH}}rpx;top:{{navH-20/2}}rpx;">
+                <image src="/assets/redbag_question.png" mode="aspectFill" lazy-load="true" class="hansel" @tap.stop="share"> </image>
+            </view>
+        </view>
+        <view class="box">
+            <image src="https://hzweimo.oss-cn-beijing.aliyuncs.com/redbag_head.png" mode="aspectFill" lazy-load="true" class="count_down">
+                <view class='countdown'>
+                    <view>{{ day }}</view>
+                    <view>{{ hour }}</view>
+                    <view>{{ minute }}</view>
+                    <view>{{ second }}</view>
+                </view>
+                <view @tap="shower" class="hansel_over" wx:if="{{hanselOver}}">
+                    <view>
+                        快来添加官方微信yinyuxc， 参与唱歌赢红包活动吧
+                        <image src="/assets/redbag_end_follow.png" lazy-load="true"> </image>
+                    </view>
+                </view>
+            </image>
+            <view class="box_box">
+                <repeat for="{{rankingLists}}" key="index" index="index" item="item">
+                    <view class='containers rank_box'>
+                        <view class="leading_singer_box">
+                            <view class="box_top">
+                                <view class="top_title" @tap="tosongRank({{item}})">{{item.musicName}}</view>
+                            </view>
+                            <repeat for="{{item.rankMap}}" key="index" index="index" item="item">
+                                <view class="remark">{{item.remark}}</view>
+                                <view class="box_center">
+                                    <view class='box_center_one'>
+                                        <view class="box_center_title">{{item.nickName}}</view>
+                                        <view class="box_center_medal" wx:if="{{item.levelRemark}}">{{item.levelRemark}} {{item.userLevel}}</view>
+                                        <view class="center_medal" wx:if="{{item.medalName}}">{{item.medalName}}</view>
+                                    </view>
+                                    <view class='box_center_two'>
+                                        <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true"></image>
+                                        <view class="box_center_add" wx:if="{{ !item.isFollow }}" @tap="followAction({{item}})" >+</view>
+                                        <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                                            <image src="{{(item.songUrl !== cindex) ?   '/assets/sing_play_btn_l.png':'/assets/sing_pause_btn_l.png'}}" ></image>
+                                            <text>{{item.time}}'</text>
+                                        </view>
+                                        <image class="else_img" src="{{(item.songUrl !== cindex)? '/assets/lead_voice_normal.png':'/assets/list_voice.gif'}}" mode="aspectFill" lazy-load="true"></image>
+                                    </view>
+                                </view>
+                            </repeat>
+                        </view>
+                    </view>
+                </repeat>
+            </view>
+        </view>
+        <view class="box_bottom">
+            <view>
+                <image src="/assets/bubble_qrcode.png" mode="aspectFill" lazy-load="true" class='box_bottom_one'></image>
+                <view class="msg">快来撩我们运营小姐姐吧</view>
+            </view>
+            <view></view>
+            <view>
+                <image src="/assets/redbag_qrcode.png" mode="aspectFill" lazy-load="true" class="box_bottom_two"></image>
+                <view class="two" @tap="shower">获取官方微信二维码</view>
+            </view>
+            <view>
+                <image src="/assets/redbag_share.png" mode="aspectFill" lazy-load="true" class="box_bottom_three"></image>
+                <button size="defult" type="defult" open-type="share" class="share"></button>
+                <view class="three">邀请好友</view>
+            </view>
+        </view>
+        <view class="weixin_box" wx:if="{{isShow}}" @tap.stop="shower">
+            <view>
+                <image src="/assets/dialogue_qrcode.png" mode="aspectFill" lazy-load="true" class="weixin"></image>
+            </view>
+            <view class='weixin_msg' @tap.stop="sever">保存二维码到相册</view>
+        </view>
+        <view class='empty_container' wx:if='{{rankingLists <=0 }}'>
+            <image class='empty_icon' src='../../assets/empty_red.png' />
+            <view class='empty_title'>领唱位正在产生中，快来扫码领红包哦</view>
+        </view>
+        <redBagRule></redBagRule>
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import rankingList from '@/components/rankingList'
+    import api from '@/api/api'
+    import PaginationModel from '@/models/paginationModel'
+    const pageMode = new PaginationModel()
+    import nav from '@/components/nav'
+    import redBagRule from '@/components/redBagRule'
+    import AudioInnerPlayer from '@/utils/audioPlayer'
+    let player = new AudioInnerPlayer()
+    export default class leadingSinger extends wepy.page {
+      config = {
+        navigationBarTitleText: '',
+        enablePullDownRefresh: true
+      };
+      data = {
+        day: '00',
+        hour: '00',
+        minute: '00',
+        second: '00',
+        title: '更多红包活动',
+        navH: '',
+        rankingLists: [],
+        pageNo: 1,
+        isMore: true,
+        isPlay: false,
+        cindex: '',
+        isShow: false,
+        top: 0,
+        height: 0,
+        date: '',
+        hanselOver: false,
+        user: '',
+        uid: ''
+      };
+      components = {
+        rank: rankingList,
+        nav,
+        redBagRule
+      };
+      methods = {
+        async followAction(item) {
+          const res = await api.followUser({
+            id: item.userId
+          })
+          if (res.code === 0) {
+            wepy.showToast({
+              title: '关注成功',
+              icon: 'none',
+              duration: 2000,
+              mask: true
+            })
+            item.isFollow = true
+          }
+          debugger
+          this.$apply()
+        },
+        shower() {
+          this.isShow = !this.isShow
+        },
+        sever() {
+          console.log(111)
+          let that = this
+          wx.getSetting({
+            success(res) {
+              if (!res.authSetting['scope.writePhotosAlbum']) {
+                wx.authorize({
+                  scope: 'scope.writePhotosAlbum',
+                  success() {
+                    console.log('授权成功')
+                    that.saveImageToPhotosAlbum()
+                  }
+                })
+              } else {
+                that.saveImageToPhotosAlbum()
+              }
+            }
+          })
+        },
+        share() {
+          this.$invoke('redBagRule', 'show')
+        },
+        playMusic(item, index) {
+                //   wepy.$instance.globalData.audioManager.pause()
+          this.$parent.event.emit('stopSubPagePlayer')
+          this.$parent.event.emit('onBackgroundTap')
+          player.stop()
+          if (!this.isPlay) {
+            player.play(item.songUrl)
+            this.isPlay = true
+            this.cindex = item.songUrl
+            api.addlog({
+              query: {
+                challengeId: item.challengeId
+              }
+            })
+          } else {
+            if (this.cindex !== index) {
+              player.play(item.songUrl)
+              this.isPlay = true
+              this.cindex = item.songUrl
+            } else {
+              player.pause()
+              this.isPlay = false
+              this.cindex = -1
+            }
+          }
+          console.log(player.isPlaying())
+          this.$apply()
+        },
+        back2TopPage() {
+          wepy.navigateBack({
+            delta: 1
+          })
+        }
+      };
+      events = {};
+      watch = {};
+      computed = {};
+      saveImageToPhotosAlbum() {
+        let that = this
+        let url = '../../assets/dialogue_qrcode.png'
+        wx.getImageInfo({
+          src: url,
+          success: response => {
+            wx.saveImageToPhotosAlbum({
+              filePath: response.path,
+              success: res => {
+                that.isShow = !that.isShow
+                wx.showToast({
+                  title: '保存成功',
+                  icon: 'success'
+                })
+                that.$apply()
+              },
+              fail: () => {
+                wx.showToast({
+                  title: '保存失败',
+                  icon: 'none'
+                })
+              }
+            })
+          },
+          fail: () => {},
+          complete: () => {}
+        })
+      }
+      async fetchData() {
+        this.date = null
+        let res = null
+        res = await pageMode.pullToRefresh(api.hansel)
+        this.date = res.timeDown
+        this.countDown(this.date)
+        wepy.stopPullDownRefresh()
+        if (res.code === 0) {
+          this.rankingLists = []
+          if (res.list) {
+                    /*
+                    let newRes = res.challengeList
+                    newRes.forEach(element => {
+                      element.isPlay = true
+                    })
+                    */
+            this.rankingLists = this.rankingLists.concat(res.list)
+          }
+        }
+        this.$apply()
+      };
+      async fecthMoreData() {
+        this.pageNo++
+        let res = null
+        res = await pageMode.more(api.hansel)
+        if (res.code === 0) {
+          if (!pageMode.checkLoadMore(res.list)) {
+            this.isMore = false
+          }
+          if (res.list.length > 0) {
+            this.rankingLists = this.rankingLists.concat(res.list)
+          }
+        }
+        this.$apply()
+  };
+      countDown(times) {
+        this.timer = null
+        let _this = this
+        this.timer = setInterval(function() {
+                // 时间默认值
+          let day = 0
+          let hour = 0
+          let minute = 0
+          let second = 0
+          if (times > 0) {
+            day = Math.floor(times / (60 * 60 * 24))
+            hour = Math.floor(times / (60 * 60)) - (day * 24)
+            minute = Math.floor(times / 60) - (day * 24 * 60) - (hour * 60)
+            second = Math.floor(times) - (day * 24 * 60 * 60) - (hour * 60 * 60) - (minute * 60)
+          }
+          if (day <= 9) {
+            _this.day = '0' + day
+          } else {
+            _this.day = day
+          }
+          if (hour <= 9) {
+            _this.hour = '0' + hour
+          } else {
+            _this.hour = hour
+          }
+          if (minute <= 9) {
+            _this.minute = '0' + minute
+          } else {
+            _this.minute = minute
+          }
+          if (second <= 9) {
+            _this.second = '0' + second
+          } else {
+            _this.second = second
+          }
+          times--
+          _this.$apply()
+        }, 1000)
+        if (times <= 0) {
+          this.hanselOver = true
+        //   this.fetchData()
+          clearInterval(this.timer)
+        }
+        _this.$apply()
+      };
+      onPullDownRefresh = async() => {
+        this.fetchData()
+      };
+      onReachBottom = async() => {
+        if (this.isMore) {
+          this.fecthMoreData()
+        }
+      };
+      async onLoad() {
+        this.uid = wepy.getStorageSync('userId')
+        this.user = this.$parent.globalData.userInfo
+        this.navH = this.$parent.globalData.navHeight
+        this.top = this.$parent.globalData.top
+        this.height = this.$parent.globalData.height
+        console.log()
+        await wx.showLoading({
+          title: '加载中...'
+        })
+        await this.fetchData()
+        await wx.hideLoading()
+        wepy.$instance.event.offEvent('leadingSinger')
+        wepy.$instance.event.subscribeOn(
+                'leadingSinger',
+                this.playAudioComplete.bind(this))
+        this.$apply()
+      };
+      onUnload() {
+        player.stop()
+        this.isPlay = false
+        this.cindex = -1
+        this.$apply()
+        clearInterval(this.timer)
+      }
+      playAudioComplete() {
+        this.cindex = -1
+        this.$apply()
+      };
+      onShow() {
+        wepy.removeStorageSync('shareType')
+        wepy.removeStorageSync('shareId')
+      };
+      onShareAppMessage(res) {
+        let follow = this.$parent.globalData.shareInfo.redPag
+        let shareTitle = follow.text
+        let path = '/pages/index?uid=' + wepy.getStorageSync('userId') + '&shareType=3&shareId=111'
+        console.log(path)
+        return {
+          title: shareTitle,
+          path: path,
+          imageUrl: follow.shareImg,
+          success: function(res) {}
+        }
+      }
+    }
+</script>
+
+<style lang='less' scoped>
+    .container {
+        background: #000;
+        min-height: 100vh;
+        justify-content: flex-start;
+    }
+    .box {
+        position: relative;
+        width: 100%;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .count_down {
+        height: 408rpx;
+        width: 750rpx;
+        position: relative;
+    }
+    .countdown {
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        color: #000000;
+        position: absolute;
+        height: 66rpx;
+        width: 400rpx;
+        top: 116rpx;
+        left: 176rpx; // font-family: DINCondensed-Bold;
+        font-size: 60rpx;
+        color: #303030;
+    }
+    .countdown>view:not(:first-child) {
+        margin-left: 39rpx;
+    }
+    .countdown>view {
+        width: 80rpx;
+        text-align: center;
+        height: 66rpx;
+        line-height: 66rpx;
+    }
+    .head_l {
+        width: 264rpx;
+        height: 574rpx;
+        position: absolute;
+        left: 0;
+    }
+    .head_r {
+        width: 264rpx;
+        height: 574rpx;
+        position: absolute;
+        right: 0;
+        top: 108rpx;
+    }
+    .music_top_tips {
+        position: absolute;
+        font-family: PingFangSC-Semibold;
+        font-size: 34rpx;
+        color: #FFFFFF;
+        top: 64rpx;
+        left: 32rpx;
+    }
+    .rank_box {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .containers {
+        padding: 0 0 32rpx 0;
+        background: linear-gradient(#E23E59, #CE0057);
+        width: 100vw;
+    }
+    .leading_singer_box {
+        width: 670rpx;
+        background: #FFFFFF;
+        box-shadow: 0 7px 0 0 #AC0E46;
+        border-radius: 20rpx;
+    }
+    .leading_singer_box>:last-child {
+        border-bottom: 0rpx;
+    }
+    .box_top {
+        display: flex;
+        flex-flow: row wrap;
+        justify-content: space-between;
+        align-items: center;
+        height: 88rpx;
+        width: 670rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .top_title {
+        width: 300rpx;
+        margin-left: 32rpx;
+        height: 40rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .top_msg {
+        text-align: right;
+        margin-right: 24rpx;
+        width: 100%;
+        height: 34rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-left: 16rpx;
+        position: absolute;
+        right: 0rpx;
+    }
+    .image>image {
+        width: 48rpx;
+        height: 48rpx;
+        border-radius: 50%;
+    }
+    .image>.image_two {
+        position: absolute;
+        left: 38rpx;
+        background: #73CFE5;
+    }
+    .image>.image_three {
+        position: absolute;
+        left: 76rpx;
+        background: #FF4174;
+    }
+    .image {
+        width: 300rpx;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    .image_one {
+        position: absolute;
+    }
+    .box_center {
+        display: flex;
+        flex-flow: row wrap;
+        height: 192rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .box_center_one {
+        margin-top: 18rpx;
+        height: 46rpx;
+        margin-left: 32rpx;
+        display: flex;
+        flex-flow: row nowrap;
+    }
+    .box_center_title {
+        font-family: PingFangSC-Medium;
+        font-size: 32rpx;
+        font-weight: bold;
+        color: #303030;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .box_center_medal {
+        width: 186rpx;
+        background: #73CFE5;
+        border-radius: 70rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 46rpx;
+        margin-left: 28rpx;
+    }
+    .center_medal {
+        padding: 0 20rpx 0 20rpx;
+        background: #FF4174;
+        border-radius: 70rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 46rpx;
+        margin-left: 20rpx;
+    }
+    .box_center_two {
+        width: 100%;
+        height: 94rpx;
+        margin-top: 16rpx;
+        position: relative;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+    }
+    .box_center_two>.user_img {
+        position: absolute;
+        width: 80rpx;
+        height: 80rpx;
+        border-radius: 50%;
+        margin-left: 32rpx;
+        z-index: 1;
+        border: 4rpx solid #000000;
+    }
+    .box_center_add {
+        width: 44rpx;
+        height: 44rpx;
+        background: #FF4174;
+        border-radius: 50%;
+        border: 4rpx solid #000000;
+        position: absolute;
+        top: 55rpx;
+        left: 48rpx;
+        z-index: 2;
+        font-size: 48rpx;
+        color: #fff;
+        text-align: center;
+        line-height: 40rpx;
+    }
+    .box_center_play {
+        position: absolute;
+        left: 54rpx;
+        width: 270rpx;
+        height: 64rpx;
+        background: #FFFFFF;
+        border: 4rpx solid #303030;
+        border-bottom-right-radius: 50rpx;
+        border-top-right-radius: 50rpx;
+    }
+    .box_center_play>image {
+        position: absolute;
+        left: 84rpx;
+        top: 16rpx;
+        width: 30rpx;
+        height: 34rpx;
+    }
+    .box_center_play>text {
+        position: absolute;
+        top: 14rpx;
+        left: 134rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+    }
+    .else_img {
+        width: 150rpx;
+        height: 100rpx;
+        position: absolute;
+        right: 40rpx;
+    }
+    .remark {
+        font-family: PingFangSC-Regular;
+        font-size: 14px;
+        color: #303030;
+        margin-left: 40rpx;
+        margin: 12rpx 0 12rpx 40rpx;
+    }
+    .box_bottom {
+        width: 100%;
+        height: 210rpx;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        background: #CE0057;
+        z-index: 100;
+        display: flex;
+        flex-flow: row wrap;
+        padding-left: 32rpx;
+        padding-top: 28rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 13px;
+        color: #303030;
+        letter-spacing: 0;
+    }
+    .box_bottom>view {
+        height: 76rpx;
+        width: 336rpx;
+        line-height: 76rpx;
+        position: relative;
+        border-radius: 22px;
+    }
+    .box_bottom>:nth-child(3) {
+        background: #fff;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        justify-content: center;
+    }
+    .box_bottom>:nth-child(4) {
+        background: #FFDC51;
+        margin-left: 14rpx;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        justify-content: center;
+    }
+    .box_bottom_one {
+        width: 344rpx;
+        height: 72rpx;
+    }
+    .box_bottom_two {
+        width: 52rpx;
+        height: 52rpx;
+    }
+    .box_bottom_three {
+        width: 52rpx;
+        height: 52rpx;
+    }
+    .msg {
+        position: absolute;
+        top: -8rpx;
+        left: 0rpx;
+        width: 100%;
+        height: 76rpx;
+        text-align: center;
+        font-family: PingFangSC-Medium;
+        font-size: 13px;
+        color: #ffffff;
+        letter-spacing: 0;
+    }
+    .weixin {
+        width: 554rpx;
+        height: 770rpx;
+    }
+    .weixin_box {
+        background: rgba(0, 0, 0, 0.5);
+        position: fixed;
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        flex-flow: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 999;
+    }
+    .weixin_msg {
+        margin-top: 64rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 15px;
+        color: #303030;
+        letter-spacing: -0.41px;
+        text-align: center;
+        background: #FFDC51;
+        border-radius: 22px;
+        width: 554rpx;
+        height: 88rpx;
+        line-height: 88rpx;
+        z-index: 9999;
+    }
+    .share {
+        position: absolute;
+        width: 335rpx;
+        height: 76rpx;
+        opacity: 0;
+        top: 0;
+        left: 0;
+    }
+    .box_box {
+        display: flex;
+        flex-flow: column nowrap;
+        justify-content: center;
+        align-items: center;
+    }
+    .box_box>:last-child {
+        padding-bottom: 240rpx;
+    }
+    .position {
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        position: relative;
+        width: 100%;
+    }
+    .hansel_v {
+        position: fixed;
+        width: 80rpx;
+        ;
+        position: fixed;
+        top: 0;
+        left: 310rpx;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .hansel {
+        // top: 63rpx;
+        width: 34rpx;
+        height: 34rpx;
+        z-index: 9998;
+    }
+    .hansel_over {
+        background: #FFFBF3;
+        border: 3px solid #FFDC51;
+        box-shadow: 0 6px 0 0 rgba(138, 16, 85, 0.70);
+        border-radius: 11px;
+        width: 536rpx;
+        height: 198rpx;
+        ;
+        position: absolute;
+        top: 77rpx;
+        left: 102rpx;
+    }
+    .hansel_over>:first-child {
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #4A4A4A;
+        letter-spacing: 0;
+        padding: 22rpx 39rpx 56rpx 40rpx;
+        position: relative;
+    }
+    .hansel_over image {
+        position: absolute;
+        top: 167rpx;
+        left: 150rpx;
+        width: 230rpx;
+        height: 72rpx;
+    }
+    .empty_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 100rpx 0 460rpx 0;
+    background: linear-gradient(#E23E59, #CE0057);
+
+    .empty_icon {
+      width: 172rpx;
+      height: 166rpx;
+    } 
+    .empty_title {
+      font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #FF9BAE;
+        letter-spacing: 0;
+      }
+  }
+</style>

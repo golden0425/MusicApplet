@@ -1,0 +1,98 @@
+<!--  -->
+<template>
+  <view class='add2minPragram_container'>
+    <view class='guide_box'>
+      <!-- <image src='../assets/guide_focus.png' class='guide_focus' style="top:{{(btnframe.top * 2) + (btnframe.height * 2 )+ 4}}rpx;left:{{(btnframe.left * 2) - (btnframe.width * 2 )+ 20}}rpx;"/> -->
+      <!-- <view class='guide_tips_box' style="top:{{(btnframe.top) * 2 + (btnframe.height * 2 )+ 140}}rpx;"> -->
+        <view class='guide_tips_box' style="top:140rpx;">
+       <view class='tips'> 把我添加到我的小程序里，</view>
+       <view class='tips'>10天后即可变身为最酷歌手。</view>
+      </view>
+      <image src='../assets/guide_know.png' class='guide_know' @tap.stop='dismiss'/>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+export default class Example extends wepy.component {
+    props = {};
+    data = {
+      btnframe: null
+    };
+
+    components = {};
+
+    methods = {
+      dismiss() {
+        this.$emit('dimissMinParagramTips')
+      }
+    };
+
+    events = {};
+
+    watch = {};
+
+    computed = {};
+
+    onLoad() {
+      const res = wx.getMenuButtonBoundingClientRect()
+      this.btnframe = res
+      this.$apply()
+      console.log(res)
+    };
+}
+</script>
+
+<style lang='less' scoped>
+.add2minPragram_container {
+  background-color: rgba(0, 0, 0, 0.74);
+  width:100vw;
+  height:100vh;
+  position: absolute;
+  z-index: 2000;
+  left: 0;
+  right: 0;
+}
+.guide_box {
+  display: flex;
+  flex-direction: column;
+}
+.guide_focus {
+  position: fixed;
+  width: 164rpx;
+  height: 130rpx;
+  z-index: 2001;
+}
+.guide_tips_box {
+  position: fixed;
+  width: 478rpx;
+  height: 148rpx;
+  background: rgba(0,0,0,0.66);
+  border: 2rpx solid #676767;
+  border-radius: 20rpx;
+  font-family: PingFangSC-Medium;
+  font-size: 32rpx;
+  color: #FFFFFF;
+  letter-spacing: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center ;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.guide_know {
+  position: fixed;
+  width: 198rpx;
+  height: 90rpx;
+  bottom: 268rpx;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.tips{
+  margin-left: 10rpx;
+  width: 418rpx;
+
+}
+</style>

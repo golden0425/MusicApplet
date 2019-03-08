@@ -1,0 +1,303 @@
+<template>
+    <view class='container'>
+        <nav :navH.sync='navH' :title.sync='title'></nav>
+        <!-- chat list -->
+        <view style='margin-top:{{navH + 90}}rpx;'>
+             <musicNav  :scanMusicCount.sync='scanMusicCount' :likeMusicCount.sync='likeMusicCount'/>
+        </view>       
+        <view class='chat_list_box' >
+            <repeat for="{{list}}" key="index" index="index" item="item">
+                <view class='chat_list_item'>
+                    <image src="{{item.coverImg?item.coverImg + '?x-oss-process=image/resize,m_lfit,h_108,w_108':item.musicImg + '?x-oss-process=image/resize,m_lfit,h_108,w_108'}}" class='item_avatar' mode='aspectFill'/>
+                    <view class='item_content'>
+                        <view class='item_username'>{{item.title}}</view>
+                        <view class='item_message'>{{item.author}}</view>
+                    </view>
+                    <view class='item_state' @tap='shareMusic({{item}})'> 分享 </view>                   
+                    <view class='item_line'></view>
+                </view>
+            </repeat>
+        </view>
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import nav from '@/components/nav'
+    import musicNav from '@/components/shareMusicNav'
+    import PaginationModel from '@/models/paginationModel'
+    const likePageMode = new PaginationModel()
+    const recentPlayPageMode = new PaginationModel()
+    import api from '@/api/api'
+    export default class chatList extends wepy.page {
+      config = {
+        enablePullDownRefresh: true
+      }
+      components = {
+        nav,
+        musicNav
+      }
+      data = {
+        navH: 0,
+        title: '分享音乐',
+        scanMusicCount: 0,
+        likeMusicCount: 0,
+        list: [],
+        likedMusicList: [],
+        historyMusicList: [],
+        currentIndex: 0,
+        likedHasMore: true,
+        historyHasMore: true
+      };
+      events = {
+        back2TopPage() {
+          wepy.navigateBack({
+            delta: 1
+          })
+        },
+        musicItemSelected(index) {
+          console.log(index)
+          this.currentIndex = index
+          switch (index) {
+            case 0:
+              if (this.likedMusicList.length > 0) {
+                this.list = this.likedMusicList
+              } else {
+                this.fetchData()
+              }
+    
+              break
+            case 1:
+              if (this.historyMusicList.length > 0) {
+                this.list = this.historyMusicList
+              } else {
+                this.fetchData()
+              }
+              break
+    
+            default:
+              break
+          }
+          this.$apply()
+        }
+      }
+      methods = {
+        shareMusic(item) {
+          this.$parent.event.emit('insertMusicMusic', item)
+          wepy.navigateBack({
+            delta: 1
+          })
+        }
+      };
+      async onLoad() {
+        this.navH = this.$parent.globalData.navHeight
+        this.uid = wepy.getStorageSync('userId')
+        await this.fetchDataAndCount()
+        this.$apply()
+      }
+      onPullDownRefresh = async() => {
+        this.fetchData()
+      };
+      onReachBottom = async() => {
+        switch (this.currentIndex) {
+          case 0:
+            if (this.likedHasMore) {
+              this.fecthMoreData()
+            }
+            break
+          case 1:
+            if (this.historyHasMore) {
+              this.fecthMoreData()
+            }
+            break
+    
+          default:
+            break
+        }
+      };
+      async fetchDataAndCount() {
+        let p = {
+          toId: this.uid
+        }
+        likePageMode.currentPage = 1
+        let likeres = await likePageMode.pullToRefresh(api.likeIdealList, p)
+        recentPlayPageMode.currentPage = 1
+        let recentres = await recentPlayPageMode.pullToRefresh(api.fetchRecentPlayList, p)
+        this.historyMusicList = recentres.list
+        this.scanMusicCount = recentres.count
+        this.list = this.likedMusicList = likeres.list
+        this.likeMusicCount = likeres.count
+        this.$apply()
+      }
+      async fetchData() {
+        this.list = []
+        let res = null
+        let p = {
+          toId: this.uid
+        }
+        switch (this.currentIndex) {
+          case 0:
+            likePageMode.currentPage = 1
+            res = await likePageMode.pullToRefresh(api.likeIdealList, p)
+            break
+          case 1:
+            recentPlayPageMode.currentPage = 1
+            res = await recentPlayPageMode.pullToRefresh(api.fetchRecentPlayList, p)
+            break
+    
+          default:
+            break
+        }
+        wepy.stopPullDownRefresh()
+        if (res.code === 0) {
+          if (res.list) {
+            // this.likeMusicCount = res.count
+            this.concatData(res.list)
+          }
+        }
+        this.$apply()
+      };
+      async fecthMoreData() {
+        let res = null
+        let p = {
+          toId: this.uid
+        }
+        switch (this.currentIndex) {
+          case 0:
+            res = await likePageMode.more(api.likeIdealList, p)
+            break
+          case 1:
+            res = await recentPlayPageMode.more(api.fetchRecentPlayList, p)
+            break
+          default:
+            break
+        }
+        if (res.code === 0) {
+          if (res.list) {
+            this.concatData(res.list)
+          }
+        }
+        this.$apply()
+      };
+      concatData(list) {
+        this.list = this.list.concat(list)
+        switch (this.currentIndex) {
+          case 0:
+            this.likedMusicList = this.likedMusicList.concat(list)
+            this.likedHasMore = likePageMode.checkLoadMore(list)
+            break
+          case 1:
+            this.historyMusicList = this.historyMusicList.concat(list)
+            this.historyHasMore = recentPlayPageMode.checkLoadMore(list)
+            break
+          default:
+            break
+        }
+      };
+    }
+</script>
+
+<style lang="less" scoped>
+    .container {
+        min-height: 100vh;
+        justify-content: flex-start;
+        background-color: #000000;
+    }
+    .buttons_container {
+        margin-top: 20rpx;
+        width: 686rpx;
+        height: 140rpx;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        font-family: PingFangSC-Regular;
+        font-size: 32rpx;
+        color: #F1F1F1;
+    }
+    .white_font {
+        color: #fff;
+    }
+    .yellow_font {
+        color: #FFDC51;
+    }
+    .button_top {
+        width: 208rpx;
+        height: 128rpx;
+        line-height: 128rpx;
+        text-align: center;
+        color: #fff;
+        border-radius: 20rpx;
+        background-color: #2C2C2C;
+    }
+    .chat_list_box {
+        width: 100%;
+        margin-top: 40rpx;
+    }
+    .chat_list_item {
+        width: 100%;
+        height: 152rpx;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        position: relative;
+    }
+    .item_avatar {
+        width: 108rpx;
+        height: 108rpx;
+        margin-left: 32rpx;
+        border-radius: 6rpx;
+    }
+    .item_content {
+        display: flex;
+        margin-left: 32rpx;
+        flex-direction: column;
+        align-content: center;
+        justify-content: flex-start;
+        width: 360rpx;
+        .item_username {
+            font-family: PingFangSC-Medium;
+            font-size: 32rpx;
+            color: #FFFFFF;
+             width: 360rpx;
+            overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis; 
+          height: 44rpx;
+        }
+        .item_message {
+            font-family: PingFangSC-Regular;
+            font-size: 28rpx;
+            color: #8A8A8A;
+             width: 360rpx;
+            margin-top: 8rpx;
+        }
+    }
+    
+   .item_state {
+       width: 148rpx;
+        height: 72rpx;
+        color: #cccccc;
+        border-radius: 38rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        background: #2C2C2C;
+        line-height: 72rpx;
+        text-align: center;
+         margin-left: 32rpx;
+   }
+    .item_line {
+        width: 578rpx;
+        height: 2rpx;
+        position: absolute;
+        right: 0rpx;
+        bottom: 0rpx;
+        background-color: #212121;        
+    }
+    .arr_grey {
+        width: 16rpx;
+        height: 28rpx;
+        margin-left: 102rpx;
+    }
+</style>

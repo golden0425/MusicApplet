@@ -1,0 +1,265 @@
+<!-- 待唱歌单  -->
+<template>
+  <view class='container'>
+    <!-- audio list -->
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <view style='position: relative;margin-top:{{navH*2}}rpx;'>
+      <repeat for="{{list}}" key="index" index="index" item="item">
+        <view class='music_box' data-index="{{index}}">
+          <view class='music_item' style="{{item.txtStyle}}" @tap.stop='showOthers({{index}})'>
+            <view class='music_item_index'>{{index + 1}}</view>
+            <image class='music_corver' src="{{item.headImg}}"   mode='aspectFill' lazy-load='true' />
+            <view class='music_content' wx:if='{{type === 0}}' >
+              <view class='music_name'>{{item.nickName}}</view>
+              <view class='singger_tag_box'>
+                <view class='singger_tag_level tag' wx:if="{{item.levelName}}">{{item.levelName}} {{item.userLevel}}</view>
+                <view class='singger_tag tag' wx:if="{{item.medalName}}">{{item.medalName}}</view>
+              </view>
+              <view class='music_count'>成功挑战{{item.challengeCount}}首歌</view>
+            </view>
+            <view class='music_content' wx:else >
+              <view class='music_name'>{{item.nickName}}</view>
+              <view class='singger_tag_box'>
+                <view class='singger_tag_level tag' wx:if="{{item.levelName}}">{{item.levelName}} {{item.userLevel}}</view>
+                <view class='singger_tag tag' wx:if="{{item.medalName}}">{{item.medalName}}</view>
+              </view>
+            </view>
+            <view class='music_follow' wx:if='{{!item.follow && (item.userId !== userId)}}' @tap.stop='followAction({{index}})'>
+              <image class='music_follow_icon' src='../../assets/follow_yellow.png' />
+              <view class='music_follow_tips'>关注</view>
+            </view>
+          </view>
+        </view>
+      </repeat>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import api from '@/api/api'
+  import PaginationModel from '@/models/paginationModel'
+  const pageMode = new PaginationModel()
+  import nav from '@/components/nav'
+  export default class singerRank extends wepy.page {
+    config = {
+      enablePullDownRefresh: true
+    };
+    data = {
+      list: [],
+      more: true,
+      navH: 0,
+      ideaId: '',
+      title: '',
+      type: 0, // 0 歌手排行榜 1 歌曲想唱人员列表
+      userId: ''
+    };
+    components = {
+      nav
+    };
+    methods = {
+      showOthers(index) {
+        let item = this.list[index]
+        wepy.navigateTo({
+          url: `/pages/userInfo/others?userId=${item.userId}`
+        })
+      },
+      async followAction(index) {
+        let item = this.list[index]
+        const res = await api.followUser({
+          id: item.userId
+        })
+        if (res.code === 0) {
+          console.log('关注成功')
+          item.follow = true
+          this.$apply()
+        }
+      }
+    };
+    events = {
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      }
+    };
+    watch = {};
+    computed = {};
+    onLoad(option) {
+      this.userId = wepy.getStorageSync('userId')
+      this.navH = this.$parent.globalData.navHeight
+      if (option.type) {
+        this.type = parseInt(option.type)
+      }
+      if (option.title) {
+        this.title = option.title
+      } else {
+        this.title = '歌手排行榜'
+      }
+      if (option.ideaId) {
+        this.ideaId = option.ideaId
+      }
+      this.fetchData()
+    };
+  
+    onUnload() {
+      clearInterval(this.timer)
+    }
+    onShow() {
+      this.$parent.globalData.loveCount = 0
+      wx.removeTabBarBadge({
+        index: 1
+      })
+    };
+    onPullDownRefresh = async() => {
+      this.fetchData()
+    };
+    onReachBottom = async() => {
+      if (this.more) {
+        this.fecthMoreData()
+      }
+    }
+    async fetchData() {
+      this.list = []
+      pageMode.currentPage = 1
+      let res = this.type ? await pageMode.pullToRefresh(api.songUserList, {
+        ideaId: this.ideaId
+      }) : await pageMode.pullToRefresh(api.singerRank)
+      wepy.stopPullDownRefresh()
+      if (res.code === 0) {
+        if (res.list) {
+          this.list = this.list.concat(res.list)
+        }
+      }
+      this.$apply()
+    };
+    async fecthMoreData() {
+      let res = this.type ? await pageMode.more(api.songUserList, {
+        ideaId: this.ideaId
+      }) : await pageMode.more(api.singerRank)
+      if (res.code === 0) {
+        if (res.list) {
+          this.more = pageMode.checkLoadMore(res.list)
+          this.list = this.list.concat(res.list)
+        }
+      }
+      this.$apply()
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    min-height: 100vh;
+    justify-content: flex-start;
+  }
+  .music_item {
+    width: 100vw;
+    height: 204rpx;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    border-bottom: 2rpx solid #2c2c2c;
+    position: relative;
+    z-index: 5;
+    background: #000;
+  }
+  .music_item_index {
+    font-family: PingFangSC-Semibold;
+    font-size: 28rpx;
+    color: #8A8A8A;
+    text-align: right;
+    width: 40rpx;
+    margin-right: 20rpx;
+  }
+  .music_corver {
+    width: 144rpx;
+    height: 144rpx;
+    border-radius: 50%;
+  }
+  .music_content {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex-direction: column;
+    margin-left: 22rpx;
+    width: 368rpx;
+    .music_name {
+      font-family: PingFangSC-Medium;
+      font-size: 32rpx;
+      color: #fff;
+    }
+    .music_auth {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+    }
+    .music_count {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 16rpx;
+    }
+  }
+  .music_follow_icon {
+    width: 20rpx;
+    height: 20rpx;
+  }
+  .music_follow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 124rpx;
+    height: 52rpx;
+    border: 2rpx solid #FFDC51;
+    border-radius: 26rpx;
+    .music_follow_tips {
+      font-family: PingFangSC-Regular;
+      font-size: 24rpx;
+      color: #FFDC51;
+      margin-left: 8rpx;
+    }
+  }
+  .inner {
+    background-color: #000;
+    width: 180rpx;
+    text-align: center;
+    line-height: 204rpx;
+    color: #fff;
+    height: 204rpx;
+    position: absolute;
+    right: 0;
+    z-index: 4;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .music_box {
+    position: relative;
+    z-index: 5;
+  }
+  .singger_tag_box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 8rpx;
+  }
+  .singger_tag_level {
+    background: #73CFE5;
+    height: 32rpx;
+    margin-right: 20rpx;
+  }
+  .singger_tag {
+    height: 32rpx;
+    background: #FF4174;
+  }
+  .tag {
+    font-family: PingFangSC-Regular;
+    font-size: 22rpx;
+    color: #FFFFFF;
+    padding: 0 20rpx;
+    border-radius: 18rpx;
+  }
+</style>

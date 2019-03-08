@@ -1,0 +1,100 @@
+<!--  -->
+<template>
+    <view class='music_nav_box'>       
+        <view class='music_nav' @tap='click({{0}})'>
+            <view class="{{ currentIndex === 0 ? 'music_nav_highlight_tips' : 'music_nav_tips' }}">喜欢</view>
+            <view class="{{ currentIndex === 0 ? 'music_nav_highlight_content' : 'music_nav_content'}}">{{likeMusicCount}}</view>
+            <view class='music_nav_indicator' wx:if='{{currentIndex === 0}}'></view>
+        </view>
+        <view class='music_nav' @tap='click({{1}})'>
+            <view class="{{ currentIndex === 1 ? 'music_nav_highlight_tips' : 'music_nav_tips' }}">最近播放</view>
+            <view class="{{ currentIndex === 1 ? 'music_nav_highlight_content' : 'music_nav_content'}}">{{scanMusicCount}}</view>
+              <view class='music_nav_indicator'  wx:if='{{currentIndex === 1}}'></view>
+        </view>
+   
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    export default class Example extends wepy.component {
+      props = {
+        likeMusicCount: {
+          type: Number,
+          default: 0
+        },
+    
+        scanMusicCount: {
+          type: Number,
+          default: 0
+        }
+      };
+      data = {
+        currentIndex: 0
+      };
+      components = {};
+      methods = {
+        click(index) {
+          this.currentIndex = index
+          this.$emit('musicItemSelected', index)
+        }
+      };
+      events = {};
+      watch = {};
+      computed = {};
+      onLoad() {};
+      onShow() {};
+    }
+</script>
+
+<style lang="less" scoped>
+    .music_nav_box {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 64rpx;
+        .music_nav {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            font-family: PingFangSC-Regular;
+            font-size: 14px;
+            height: 100rpx;
+            color: #FFFFFF;
+            flex: 2;
+            position: relative;
+            .music_nav_highlight_tips {
+                font-family: PingFangSC-Medium;
+                font-size: 28rpx;
+                color: #FFDC51;
+            }
+             .music_nav_tips {
+                font-family: PingFangSC-Medium;
+                font-size: 28rpx;
+                color: #E6E6E6;
+            }
+            .music_nav_content {
+                font-family: PingFangSC-Medium;
+                font-size: 18px;
+                color: #E6E6E6;
+                margin-left: 14rpx;
+            }
+              .music_nav_highlight_content {
+                font-family: PingFangSC-Medium;
+                font-size: 18px;
+                color: #FFDC51;
+                margin-left: 14rpx;
+            }
+            .music_nav_indicator {
+                position: absolute;
+                width: 375rpx;
+                height: 2rpx;
+                background-color: #ffdc51;
+                bottom: 0rpx;
+            }
+        }
+    }
+</style>

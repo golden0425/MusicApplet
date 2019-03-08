@@ -1,0 +1,401 @@
+<!-- 红包落地页 -->
+<template>
+    <view class='container'>
+        <image class='bg' src='https://hzweimo.oss-cn-beijing.aliyuncs.com/redbag_share_bg.png' />
+        <view class='content'>
+            <view class='content_top'>
+                <view class='content_top_left'>{{info.musicName}}</view>
+                <view class='content_top_right'>
+                    <view class='content_date' wx:if="{{info.ranking!=='第null期'}}">{{info.remark}}</view>
+                    <view class='top_msg' wx:if='{{info.ranking}}'>实时排名
+                        <view class="content_rank">
+                            No.{{info.ranking}}
+                        </view>
+                    </view>
+                </view>
+            </view>
+            <view class="box_center">
+                <view class='box_center_one'>
+                    <view class="box_center_title">{{info.nickName}}</view>
+                    <view class="box_center_medal" wx:if="{{info.levelName}}">{{info.levelName}} {{info.userLevel}}</view>
+                    <view class="center_medal" wx:if="{{info.medalName}}">{{info.medalName}}</view>
+                </view>
+                <view class='like_box'>
+                    <view class='box_center_two'>
+                        <image class="user_img" src="{{info.headImg}}" mode="aspectFill" lazy-load="true"></image>
+                        <view class="box_center_play" @tap.stop="playMusic">
+                            <image src="{{!playStatus ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}"></image>
+                            <text>{{info.time}}'</text>
+                        </view>
+                    </view>
+                    <view class='like_container' wx:if='{{shareType === 2}}'>
+                        <image class='like_icon' src="{{info.love || love ? '../assets/home_like_normal_clicked.png':'../assets/leadprofile_like_normal_red.png'}}" @tap.stop='love' />
+                        <view class='like_tips'>{{info.loveNum}}</view>
+                    </view>
+                    <view class="box_bottom_right" wx:elif='{{shareType === 1}}'>
+                        <view>{{ info.pickNum ? info.pickNum :0}}人Pick</view>
+                        <image src="{{ info.pick || pick ? '/assets/lead_pick_clicked.png' : '/assets/lead_pick_normal.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="pick"></image>
+                    </view>
+                </view>
+            </view>
+        </view>
+        <view class='bottom'>
+            <view style='position:relative; width:668rpx; height:92rpx;' @tap.stop='listenMore'>
+                <image class='share_btn' src='../assets/redbag_share_btn.png' />
+                <view class='bottom_title'>去听更多歌声</view>
+            </view>
+        </view>
+    </view>
+</template>
+
+<script>
+    import wepy from 'wepy'
+    import api from '@/api/api'
+    import AudioInnerPlayer from '@/utils/audioPlayer'
+    export default class flooringPage extends wepy.page {
+      config = {
+        navigationBarTitleText: ''
+      };
+      data = {
+        shareType: '',
+        shareId: '',
+        info: '',
+        playStatus: false,
+        singPlayer: '',
+        pick: false,
+        love: false
+      };
+      components = {};
+      methods = {
+        listenMore() {
+          wepy.navigateBack({
+            delta: 10
+          })
+                // 切换tabbar
+          wx.switchTab({
+            url: '/pages/leadingSinger'
+          })
+        },
+        playMusic() {
+          if (!this.playStatus) {
+            this.$parent.event.emit('stopSubPagePlayer')
+            this.$parent.event.emit('onBackgroundTap')
+            this.singPlayer = new AudioInnerPlayer()
+            this.singPlayer.play(this.info.songUrl)
+            this.playStatus = true
+          } else {
+            this.playStatus = false
+            this.singPlayer.stop()
+            this.singPlayer.destroy()
+            this.singPlayer = ''
+          }
+          this.$apply()
+        },
+        love() {
+          if (!this.love) {
+            if (!this.info.love) {
+              this.info.love = true
+              this.love = true
+              this.info.loveNum++
+              api.clickLove({
+                query: {
+                  challengeId: this.shareId,
+                  ideaId: this.info.ideaId
+                }
+              })
+            }
+          } else {
+            api.clickLove({
+              query: {
+                challengeId: this.shareId,
+                ideaId: this.info.ideaId
+              }
+            })
+          }
+    
+          this.$apply()
+        },
+        pick() {
+          if (!this.pick) {
+            let pick = this.info.pick
+            if (!pick) {
+              pick = true
+              this.pick = true
+              this.info.pickNum++
+              api.clickPick({
+                query: {
+                  challengeId: this.shareId,
+                  ideaId: this.info.ideaId
+                }
+              })
+            }
+          } else {
+            api.clickPick({
+              query: {
+                challengeId: this.shareId,
+                ideaId: this.info.ideaId
+              }
+            })
+          }
+    
+          this.$apply()
+        }
+      };
+      events = {};
+      watch = {};
+      computed = {};
+      onLoad(option) {
+        if (option.shareType && option.shareId) {
+          this.shareType = parseInt(option.shareType)
+          this.shareId = option.shareId
+        }
+        this.fetchData()
+      };
+      onShow() {
+        wepy.removeStorageSync('shareType')
+        wepy.removeStorageSync('shareId')
+      };
+      async fetchData() {
+        const res = await api.floorPage({
+          query: {
+            shareRecordId: this.shareId,
+            shareType: this.shareType
+          }
+        })
+        console.log(res)
+        this.info = res
+        this.$apply()
+      };
+      onUnload() {
+        if (this.singPlayer) {
+          this.singPlayer.stop()
+          this.singPlayer.destroy()
+          this.singPlayer = ''
+        }
+      }
+    }
+</script>
+
+<style lang="less" scoped>
+    .bg {
+        width: 100vw;
+        height: 100vh;
+        position: absolute;
+        top: 0rpx;
+        left: 0rpx;
+    }
+    .content {
+        position: absolute;
+        top: 0rpx;
+        left: 0rpx;
+        width: 670rpx;
+        height: 278rpx;
+        background: #fff;
+        left: 50%;
+        margin-left: -335rpx;
+        top: 900rpx;
+        border: 2px solid #E2E2E2;
+        box-shadow: 0 8rpx 0 0 #D1D1D1;
+        border-radius: 20rpx;
+    }
+    .content_top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 88rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .content_top_right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .content_top_left {
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+        margin-left: 32rpx;
+    }
+    .content_date {
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-right: 12rpx;
+    }
+    .top_msg {
+        display: flex;
+        justify-content: flex-end;
+        margin-right: 40rpx;
+        width: 100%;
+        height: 40rpx;
+        //font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-left: 16rpx;
+        position: absolute;
+        right: 0rpx;
+        line-height: 40rpx;
+    }
+    .content_rank {
+        // font-family: DINCondensed-Bold;
+        font-size: 40rpx;
+        color: #FF4174;
+        margin:0 0 0 10rpx;
+
+    }
+    .box_center {
+        display: flex; // flex-flow: row wrap;
+        flex-direction: column;
+        height: 192rpx;
+        border-bottom: 2rpx solid #F5F5F5;
+    }
+    .box_center_one {
+        margin-top: 20rpx;
+        height: 60rpx;
+        margin-left: 32rpx;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+    .box_center_title {
+        font-family: PingFangSC-Medium;
+        font-size: 32rpx;
+        font-weight: bold;
+        color: #303030;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .box_center_medal {
+        width: 186rpx;
+        background: #73CFE5;
+        border-radius: 18rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 40rpx;
+        margin-left: 28rpx;
+    }
+    .center_medal {
+        padding: 0 20rpx 0 20rpx;
+        background: #FF4174;
+        border-radius: 18rpx;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        text-align: center;
+        line-height: 46rpx;
+        margin-left: 20rpx;
+    }
+    .box_center_two {
+        width: 100%;
+        height: 94rpx;
+        margin-top: 16rpx;
+        position: relative;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+    }
+    .box_center_two>.user_img {
+        position: absolute;
+        width: 80rpx;
+        height: 80rpx;
+        border-radius: 50%;
+        margin-left: 32rpx;
+        z-index: 1;
+        border: 4rpx solid #000000;
+    }
+    .box_center_play {
+        position: absolute;
+        left: 54rpx;
+        width: 270rpx;
+        height: 64rpx;
+        background: #FFFFFF;
+        border: 4rpx solid #303030;
+        border-bottom-right-radius: 50rpx;
+        border-top-right-radius: 50rpx;
+    }
+    .box_center_play>image {
+        position: absolute;
+        left: 84rpx;
+        top: 16rpx;
+        width: 30rpx;
+        height: 34rpx;
+    }
+    .box_center_play>text {
+        position: absolute;
+        top: 14rpx;
+        left: 134rpx;
+        font-family: PingFangSC-Regular;
+        font-size: 28rpx;
+        color: #303030;
+    }
+    .like_icon {
+        width: 44rpx;
+        height: 40rpx;
+    }
+    .like_box {
+        display: flex;
+        align-items: center;
+        margin-right: 36rpx;
+    }
+    .like_container {
+        display: flex;
+        align-items: center;
+    }
+    .like_tips {
+        font-family: PingFangSC-Medium;
+        font-size: 28rpx;
+        color: #303030;
+        margin-left: 16rpx;
+    }
+    .bottom {
+        position: absolute;
+        top: 1220rpx;
+        left: 50%;
+        margin-left: -334rpx;
+        width: 668rpx;
+        height: 92rpx;
+    }
+    .share_btn {
+        width: 668rpx;
+        height: 92rpx;
+        position: absolute;
+        z-index: 1;
+        left: 0;
+        top: 0;
+    }
+    .bottom_title {
+        font-family: PingFangSC-Medium;
+        font-size: 32rpx;
+        color: #FFFFFF;
+        text-align: center;
+        z-index: 20;
+        width: 668rpx;
+        height: 92rpx;
+        line-height: 92rpx;
+        position: absolute;
+        z-index: 1;
+        left: 0;
+        top: -10rpx;
+    }
+    .box_bottom_right {
+        position: absolute;
+        right: 0;
+        display: flex;
+        align-items: center;
+        flex-flow: row nowrap;
+        font-family: PingFangSC-Medium;
+        font-size: 24rpx;
+        color: #979797;
+        margin-right: 0;
+    }
+    .box_bottom_right>image {
+        width: 58rpx;
+        height: 40rpx;
+        margin: 0 34rpx 0 10rpx;
+    }
+</style>

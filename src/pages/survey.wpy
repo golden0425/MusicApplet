@@ -1,0 +1,39 @@
+<!--  -->
+<template>
+  <view class='container'>
+    <web-view src="https://www.wjx.cn/jq/34554264.aspx" ></web-view>
+  </view>
+</template>
+<script type="text/javascript" src="https://res.wx.qq.com/open/js/jweixin-1.3.2.js"></script>
+<script>
+
+  import wepy from 'wepy'
+export default class survey extends wepy.page {
+    config = {
+      navigationBarTitleText: ''
+    };
+
+    data = {
+    };
+
+    components = {
+    };
+  
+    methods = {};
+
+    events = {
+    };
+
+    watch = {};
+
+    computed = {};
+
+    onLoad(option) {
+    };
+
+    onShow() { };
+  }
+</script>
+
+<style  lang="less" scoped>
+</style>

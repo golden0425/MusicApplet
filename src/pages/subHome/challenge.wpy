@@ -1,0 +1,1126 @@
+<!-- 挑战 -->
+<template>
+  <view class='container'>
+    <nav :navH.sync='navH' :title.sync='title'></nav>
+    <view class="lyric_container">
+      <view class='lyric_indacator'>
+        <repeat for="{{indacators.length > 3 ? [1,2,3]:indacators}}" key="index" index="index" item="item">
+          <view class='indacator'> </view>
+        </repeat> 
+      </view>
+      <view class="lyric_main_container">
+
+         <scroll-view id="scrollView"  scroll-y scroll-with-animation class="scrollView"  scroll-top="{{scrollTop}}">
+        <view  id='scrollViews'>
+          <!-- <view class="inserts" id="topInserts" /> -->
+          <repeat for="{{lyricArr}}" key="index" index="index" item="item">
+            <view class="lyric_main" style="{{index === currentPLyricIndex ? 'color: #FFDC51;' : 'color: #939393;'}}" id="child_{{index}}">{{item.lyric}}</view>
+          </repeat>
+          <!-- <view class="inserts" id="bottomInserts" /> -->
+        </view>
+      </scroll-view>
+
+        <!-- <text class="lyric_main">{{pmainLyric.lyric}}</text> -->
+      </view>
+      <!-- <text class="translation_lyric">{{nextLyric.lyric}}</text> -->
+    </view>
+    <view class='playing_box'>
+      <image class='recording_icon' src="{{(recordStatus || playStatus) ? 'https://hzweimo.oss-cn-beijing.aliyuncs.com/voice_play.gif' : '../../assets/sing_recording.png'}}" />
+      <image class='music_icon' src='{{stuff.giftUrl}}' mode="aspectFill"/>                                                                         
+    </view>
+    <view class='begin_container' wx:if='{{status === 0}}'>
+      <view hidden='{{!showTips}}'>
+        <view class='musci_tips_box' @tap='dismissTips'>
+          <view class='music_txt'>需要带耳麦唱满30s哦</view>
+          <image class='practice_close' src='../../assets/bubble_close.png' />
+        </view>
+      </view>
+      <view class='practice_done' @tap.stop='record'>点击开始</view>
+      <view class='begin_box'>
+        <view class='begin_tips'>不熟悉歌曲吗？先来</view>
+        <view class='sing_action' @tap.stop='singAction'>跟唱</view>
+      </view>
+    </view>
+    <view wx:elif='{{status === 1}}'>
+      <view class='practice_ing'>
+        <view>
+          <view class='practice_done' @tap.stop='record'>点击完成</view>
+        </view>
+        <view class='practice_date'>{{secondsTxt}}／{{musicTime}}</view>
+      </view>
+    </view>
+    <view wx:elif='{{status === 6}}' class='prelude_box'>
+      <view hidden='{{!showTips}}'>
+        <view class='musci_tips_box' @tap='dismissTips'>
+          <view class='music_txt'>需要带耳麦唱满30s哦</view>
+          <image class='practice_close' src='../../assets/bubble_close.png' />
+        </view>
+      </view>
+      <view class='prelude_container'>
+        <view class='prelude_row'>
+          <view class='prelude_seek' @tap.stop='seekAction'>跳过前奏</view>
+          <view class='burn_seek' wx:if="{{stuff.burnTime > 0}}" @tap.stop='burnSeekAction'>唱高潮部分</view>
+        </view>
+        <view class='prelude_tips'>正在播放前奏</view>
+        <view class='prelude_record' hidden='{{indacators.length >= 4 || indacators.length<=0}}'>{{indacators.length}} </view>
+      </view>
+    </view>
+    <!-- 完成 -->
+    <view wx:elif='{{status === 2}}'>
+      <view class='pratice_continue'>
+        <view class='play_btn_box'>
+          <image class='play_btn' src="{{ playStatus === 1 ? '../../assets/sing_pause_btn_l.png' :'../../assets/sing_play_btn_l.png'}}" @tap.stop='playSing'> </image>
+        </view>
+      </view>
+      <view class='practice_complete'>
+        <view class='back_btn_box_b'>
+          <view class='back_btn_box' @tap.stop='reSing'>
+            <image class='back_btn' src='../../assets/sing_back.png'> </image>
+          </view>
+          <view class='back_btn_tips'>重录</view>
+        </view>
+        <view class='back_btn_box_b'>
+          <view class='share_btn_box' @tap.stop='uploadAudio'>
+            <image class='share_btn' src='../../assets/sing_ok.png'> </image>
+          </view>
+          <view class='back_btn_tips'>上传</view>
+        </view>
+        <!-- <button class='practice_share_b' plain="true" open-type="share" data-tempFilePath='{{tempFilePath}}' /> -->
+      </view>
+    </view>
+    <!-- 录音设置 -->
+    <view class='audio_auth_box' wx:if='{{showAudioAuthBox}}'>
+      <view class='audio_auth_container'>
+        <view class='audio_auth_title'>请先打开录音功能</view>
+        <button open-type='openSetting' class='audio_auth_btn' @tap='dismissAudioAuthBox'>去打开</button>
+      </view>
+    </view>
+    <view class='show_toast' wx:if='{{showToast}}' @tap.stop='isShowToast'>
+      <view class='show_toast_box'>
+        <view>身边没耳麦?</view>
+        <text>调低原唱音量后再录制 \n 审核才能通过哦</text>
+        <view @tap.stop='isShowToast'>OK，知道啦</view>        
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import timeUtils from '@/utils/timeUtils'
+  import nav from '@/components/nav'
+  import wxApi from '@/api/wxApi'
+  import uplaodImageFile from '@/utils/oss/UploadAliyun'
+  import AudioInnerPlayer from '@/utils/audioPlayer'
+  import lyric from '@/utils/lyric'
+  import api from '@/api/api'
+  let player = new AudioInnerPlayer()
+  export default class challenge extends wepy.page {
+    config = {
+      navigationBarTitleText: ''
+    };
+    data = {
+      isRecordPermitted: false,
+      recordStatus: 0,
+      status: 0,
+      seconds: 0,
+      secondsTxt: '00:00',
+      navH: 0,
+      title: '',
+      stuff: '',
+      ideaId: '',
+      lyricArr: '',
+      pmainLyric: '',
+      nextLyric: '',
+      currentPLyricIndex: 0,
+      recordInterval: '',
+      playStatus: 0,
+      musicTime: '',
+      showTips: true,
+      countDown: 0,
+      indacators: [],
+      showToast: false,
+      hiddenEvent: 0,
+      scrollTop: 0,
+      lyricHeight: 0,
+      lyricHeightArr: []
+    };
+    components = {
+      nav
+    };
+    methods = {
+      isShowToast() {
+        this.showToast = !this.showToast
+      },
+      reSing() {
+        try {
+          this.pmainLyric = this.lyricArr[0]
+          this.nextLyric = this.lyricArr[1]
+        } catch (error) {}
+        this.back2Normal()
+      },
+      playSing() {
+        if (this.playStatus === 0) {
+          this.singPlayer = new AudioInnerPlayer()
+          this.singPlayer.play(this.tempFilePath)
+          this.playStatus = 1
+        } else {
+          this.playStatus = 0
+          this.singPlayer.stop()
+          this.singPlayer.destroy()
+          this.singPlayer = ''
+        }
+        this.$apply()
+      },
+      seekAction() {
+        player.seek(this.countDown - 1)
+        player.play(this.stuff.playUrl)
+        this.status = 1
+        // this.recordStatus = 0
+        this.$apply()
+      },
+      burnSeekAction() {
+        if (this.stuff.burnTime !== null) {
+          this.displayNextLyric(this.stuff.burnTime, true)
+          player.seek(this.stuff.burnTime - 1)
+
+          player.play(this.stuff.playUrl)
+          this.status = 1
+      // this.recordStatus = 0
+          let scrollTops = 0
+          for (let i = 0; i < this.currentPLyricIndex - 1; i++) {
+            scrollTops += this.lyricHeightArr[i]
+          }
+          this.scrollTop = scrollTops
+        }
+        this.$apply()
+      },
+      singAction() {
+        // 跟唱歌曲
+        let path = 'pages/subHome/sing'
+        let res = getCurrentPages()
+        console.log(res)
+  
+        let pathCount = res.length
+        let contain = false
+        res.forEach((element, index) => {
+          if (element.route === `${path}`) {
+            contain = true
+            // 如果包含数据
+            wepy.navigateBack({
+              delta: pathCount - (index + 1)
+            })
+          }
+        })
+        if (!contain) {
+          wepy.navigateTo({
+            url: `/${path}?ideaId=${this.ideaId}`
+          })
+        }
+      },
+      catMyChallenge() {
+        wepy.navigateBack({
+          delta: 10
+        })
+        wepy.switchTab({
+          url: 'leadingSinger'
+        })
+      },
+      dismissTips() {
+        this.showTips = !this.showTips
+        this.$apply()
+      },
+      uploadAudio() {
+        wepy.showLoading({
+          title: '上传中',
+          mask: true,
+          success: res => {}
+        })
+        console.log(this.tempFilePath)
+        this.uplaod2OSS(this.tempFilePath)
+        this.scrollTop = 0
+        this.lyricOHeight = 0
+        this.currentPLyricIndex = 0
+        this.$apply()
+      },
+      record() {
+        this.canChanllege()
+      }
+    };
+    events = {
+      back2TopPage() {
+        if (this.recordStatus === 1) {
+          wepy.showModal({
+            title: '提示',
+            content: '歌曲正在录制中，返回将不会保存',
+            showCancel: true,
+            cancelText: '取消',
+            cancelColor: '#000000',
+            confirmText: '确定',
+            confirmColor: '#3CC51F'
+          }).then((res) => {
+            if (res.confirm) {
+              this.recorderManager.stop()
+              this.back2Normal()
+              wepy.navigateBack({
+                delta: 1
+              })
+            }
+          })
+        } else {
+          if (this.status === 2) {
+            wepy.showModal({
+              title: '提示',
+              content: '歌曲未上传，确定返回将不会保存',
+              showCancel: true,
+              cancelText: '取消',
+              cancelColor: '#000000',
+              confirmText: '确定',
+              confirmColor: '#3CC51F'
+            }).then((res) => {
+              if (res.confirm) {
+                this.back2Normal()
+                wepy.navigateBack({
+                  delta: 1
+                })
+              }
+            })
+          } else {
+            this.back2Normal()
+            wepy.navigateBack({
+              delta: 1
+            })
+          }
+        }
+      }
+    };
+    watch = {};
+    computed = {};
+    async onLoad(option) {
+      this.navH = this.$parent.globalData.navHeight
+      let res = await wxApi.getSetting()
+      this.isRecordPermitted = res.authSetting['scope.record']
+      if (option.ideaId) {
+        this.ideaId = option.ideaId
+        await this.fetchIdealDetail()
+        await this.canChanllege(false)
+        this.title = this.stuff.title
+        this.lyricArr = await lyric.requestLyric(this.stuff)
+      }
+      try {
+        this.pmainLyric = this.lyricArr[0]
+        this.nextLyric = this.lyricArr[1]
+        let c = this.pmainLyric.time
+        if (c > 4) {
+          this.countDown = c
+          for (let index = 0; index < this.countDown; index++) {
+            this.indacators.push(index)
+          }
+        }
+      } catch (error) {}
+      this.musicTime = timeUtils.secondToDate(this.stuff.musicTime)
+      this.recorderManager = wx.getRecorderManager()
+      this.onRecordingMethod()
+      this.$parent.event.offEvent('audition')
+      this.$parent.event.subscribeOn(
+        'audition',
+        this.audition.bind(this)
+      )
+      this.accessTime()
+      this.initLyricHeightArr()
+      this.$apply()
+    };
+    initLyricHeightArr() {
+      if (this.lyricArr) {
+// 歌词滚动
+// 获取每个view高度
+        let query = wx.createSelectorQuery()
+        for (let i = 0; i <= this.lyricArr.length - 1; i++) {
+          query.select(`#child_${i}`).boundingClientRect()
+          query.exec((res) => {
+            this.lyricHeight = res[0].height // 获取list高度
+            this.lyricHeightArr.push(this.lyricHeight)
+            this.$apply()
+          })
+        }
+      }
+    };
+
+    audition() {
+      if (this.recordStatus === 1) {
+        if (this.seconds < 30) {
+          wx.showToast({
+            title: '要唱满30s哦',
+            icon: 'none',
+            duration: 3000,
+            mask: true
+          })
+          setTimeout(() => {
+            wx.hideToast()
+          }, 3000)
+        } else {
+          if (this.status === 1) {
+            this.status = 2
+          }
+          wepy.showLoading({
+            title: '保存音频。。。',
+            mask: true,
+            success: res => {}
+          })
+          this.stopRecoreding()
+        }
+      }
+      // this.stopRecoreding()
+      this.playStatus = 0
+      // this.singPlayer.stop()
+      this.singPlayer.destroy()
+      this.singPlayer = ''
+      this.$apply()
+    };
+    onHiden() {
+      console.log('onHiden')
+      if (player) {
+        this.player.stop()
+      }
+      if (this.singPlayer) {
+        this.playStatus = 0
+        this.singPlayer.stop()
+        this.singPlayer.destroy()
+        this.singPlayer = ''
+        this.$apply()
+      }
+    };
+    async fetchIdealDetail() {
+      const res = await api.fetchIdeaDetail({
+        query: {
+          ideaId: this.ideaId
+        }
+      })
+      if (res.code === 0) {
+        this.stuff = res.ideaInfo
+      }
+      console.log(res)
+    };
+
+    displayNextLyric(currentTime, isSkip) {
+      // console.log('displayNextLyric :', currentTime)
+      // let skipToIndex = 0
+      if (isSkip === true) {
+        for (let index = 0; index < this.lyricArr.length; index++) {
+          if (this.lyricArr[index].time > currentTime && index > 0) {
+            let skipToIndex = index - 2
+            if (skipToIndex > this.currentPLyricIndex) {
+              this.currentPLyricIndex = skipToIndex
+            }
+            break
+          }
+        }
+      }
+  
+      if (this.lyricArr) {
+        if (this.currentPLyricIndex < this.lyricArr.length - 1) {
+          let next = this.currentPLyricIndex + 1
+          let nextn = this.currentPLyricIndex + 1 + 1
+          let lyricObj = this.lyricArr[next]
+          let nlyricObj = ''
+          if (nextn <= this.lyricArr.length) {
+            nlyricObj = this.lyricArr[nextn]
+          }
+           // 歌词滚动
+          let leadTime = lyricObj.time - currentTime
+          // 获取每个view高度
+          if (leadTime === 0) {
+            var query = wx.createSelectorQuery()
+            query.select(`#child_${this.currentPLyricIndex}`).boundingClientRect()
+            query.exec((res) => {
+              this.lyricHeight = res[0].height // 获取list高度
+              this.lyricHeightArr.push(this.lyricHeight)
+              this.scrollTop += this.lyricHeight
+              this.$apply()
+            })
+          }
+          if (lyricObj.time <= currentTime) {
+            this.currentPLyricIndex = next
+            this.pmainLyric = lyricObj
+            this.nextLyric = nlyricObj || ''
+          }
+          if (this.indacators.length > 0) {
+            this.status = 6
+          }
+          // console.log('currentTime', currentTime)
+          // console.log('lyricObj.time', lyricObj.time)
+          // console.log('recordStatus', this.recordStatus)
+          let ctimeo = this.lyricArr[0]
+          let ctime = ctimeo.time
+          if (ctime - currentTime <= 0 && this.recordStatus === 0) {
+            console.log('开始录音')
+            this.startRecoded()
+          }
+          this.$apply()
+        }
+      }
+    };
+    accessTime() {
+      let accessTime = new Date()
+      let getDate = wepy.getStorageSync('currentData')
+      let visit = wepy.getStorageSync('visit')
+      if (getDate === accessTime.getDate() && visit === -1) {
+        this.showToast = true
+        wepy.setStorageSync('visit', 0)
+      } else {
+        this.showToast = false
+      }
+      this.$apply()
+    };
+    beginRecord() {
+      if (this.recordStatus === 0) {
+        this.$parent.event.emit('stopSubPagePlayer')
+        this.$parent.event.emit('onBackgroundTap')
+        this.recording()
+      } else {
+        if (this.seconds < 30) {
+          wx.showToast({
+            title: '要唱满30s哦',
+            icon: 'none',
+            duration: 3000,
+            mask: true
+          })
+        } else {
+          if (this.status === 1) {
+            this.status = 2
+          }
+          wepy.showLoading({
+            title: '保存音频。。。',
+            mask: true,
+            success: res => {}
+          })
+          this.stopRecoreding()
+        }
+      }
+    };
+    recording() {
+      if (this.isRecordPermitted) {
+        wepy.showLoading({
+          title: '音乐加载中',
+          mask: true,
+          success: res => {}
+        })
+        wepy.hideLoading()
+        player.play(this.stuff.playUrl)
+        this.configAudioPlayer()
+      } else {
+        let that = this
+        console.log('practice')
+        wx.authorize({
+          scope: 'scope.record',
+          success: res => {
+            that.isRecordPermitted = true
+            that.$apply()
+          },
+          fail: () => {
+          }
+        })
+      }
+    };
+    startRecoded() {
+      this.seconds = 0
+      // this.recordStatus = 1
+      this.startRecording()
+      if (this.indacators.length > 0) {
+        this.status = 6
+      } else {
+        this.status = 1
+      }
+      this.$apply()
+    };
+    configAudioPlayer() {
+      let that = this
+      const onUpdate = (time) => {
+        console.log(time)
+        let t = Math.floor(time)
+        let c = this.countDown - t
+        this.indacators = []
+        if (c > 0) {
+          for (let index = 0; index < c; index++) {
+            this.indacators.push(1)
+          }
+        }
+  
+        // that.seconds = Math.floor(time)
+        // that.secondsTxt = timeUtils.secondToDate(that.seconds)
+        that.displayNextLyric(Math.floor(time), false)
+      }
+      player.setTimeUpdateFuc(onUpdate)
+    };
+    startRecording() {
+      const options = {
+        duration: 600000,
+        sampleRate: 44100,
+        numberOfChannels: 1,
+        encodeBitRate: 192000,
+        format: 'aac',
+        frameSize: 50
+      }
+      this.recorderManager.start(options)
+    };
+    stopRecoreding() {
+      if (this.recordStatus === 1) {
+        player.setTimeUpdateFuc('')
+        player.pause()
+        // player.setTimeUpdateFuc('')
+        this.recorderManager.stop()
+        this.recordStatus = 0
+        this.banSecondTxt = timeUtils.secondToDate(this.seconds / 2)
+        clearInterval(this.recordInterval)
+      }
+    };
+    back2Normal() {
+      player.stop()
+      this.currentPLyricIndex = 0
+      this.recordings = false
+      clearInterval(this.recordInterval)
+      this.status = 0
+      this.seconds = 0
+      this.secondsTxt = '00:00'
+      this.recordStatus = 0
+      this.scrollTop = 0
+      this.lyricOHeight = 0
+      this.currentPLyricIndex = 0
+      if (this.singPlayer) {
+        this.singPlayer.stop()
+        this.singPlayer.destroy()
+        this.singPlayer = ''
+      }
+      this.$apply()
+    }
+    async uplaod2OSS(tempFilePaths) {
+      var recordTime = this.seconds
+      if (tempFilePaths) {
+        const uid = wepy.getStorageSync('userId')
+        const action = 'ChallengeUpload'
+        const type = 1
+        const res = await uplaodImageFile.uploadFile({
+          uid: uid,
+          action: action,
+          type: type,
+          idType: 0,
+          i: 0,
+          time: recordTime,
+          ideaId: this.stuff.ideaId
+        }, [tempFilePaths])
+        wepy.hideLoading()
+        if (res.result) {
+          console.log('上传成功')
+          this.status = 0
+          this.back2Normal()
+          wepy.hideLoading()
+          const filePaths = res.filePaths
+          const fileRes = JSON.parse(filePaths[0].data)
+          // this.status = fileRes.status ? 4 : 5
+          wepy.navigateTo({
+            url: `/pages/rank/songRank?ideaId=${this.stuff.ideaId}&type=-1`
+          })
+          this.seconds = 0
+          this.$apply()
+        } else {
+          wepy.hideLoading()
+          wepy.showToast({
+            title: '网络不稳定',
+            icon: 'none',
+            duration: 2000,
+            mask: true,
+            success: res => {}
+          })
+        }
+      }
+    }
+    onRecordingMethod() {
+      let that = this
+      that.recorderManager.onStart(() => {
+        if (that.recordStatus === 0) {
+          that.recordInterval = setInterval(() => {
+            that.seconds++
+            that.secondsTxt = timeUtils.secondToDate(that.seconds)
+            that.$apply()
+          }, 1000)
+        }
+        that.recordStatus = 1
+        that.$apply()
+      })
+      that.recorderManager.onError(errMsg => {
+        console.log(errMsg)
+        that.back2Normal()
+        // wepy.showToast({
+        //   title: '发生错误，请重新录制！', // 提示的内容,
+        //   duration: 1000 // 延迟时间,
+        // })
+      })
+      that.recorderManager.onStop(res => {
+        const {
+          tempFilePath
+        } = res
+        that.tempFilePath = tempFilePath
+        clearInterval(that.recordInterval)
+        if (this.status === 2) {
+          // 试听
+          that.singPlayer = new AudioInnerPlayer()
+          that.singPlayer.play(that.tempFilePath)
+          that.playStatus = 1
+        }
+        wepy.hideLoading()
+        that.$apply()
+      })
+    }
+    onShareAppMessage(res) {
+      var inviteFriend = this.$parent.globalData.shareInfo.inviteFriend
+      return {
+        title: inviteFriend.text,
+        path: '/pages/index?uid=' + wepy.getStorageSync('userId'),
+        imageUrl: inviteFriend.shareImg,
+        success: function(res) {}
+      }
+    }
+    async canChanllege(canRecord = true) {
+      const res = await api.canChanllege({query: {
+        ideaId: this.stuff.ideaId
+      }})
+      let isChalllenge = res.isChalllenge
+      if (isChalllenge) {
+        wepy.showModal({
+          title: '提示',
+          content: '你本周已经领唱成功这首歌曲，不可重复领唱了，领唱其他歌曲吧',
+          showCancel: false,
+          confirmText: '确定',
+          confirmColor: '#3CC51F'
+  
+        }).then(() => {
+          wepy.navigateBack({
+            delta: 10
+          })
+        })
+      } else {
+        if (canRecord) {
+          this.$parent.event.emit('stopSubPagePlayer')
+          // this.startRrcoded()
+          this.showTips = false
+          this.beginRecord()
+        }
+      }
+    }
+    onUnload() {
+      if (this.recorderManager) {
+        this.recorderManager.stop()
+        this.recorderManager = ''
+      }
+      console.log('onUnload')
+      player.setTimeUpdateFuc('')
+  
+      clearInterval(this.recordInterval)
+      if (this.singPlayer) {
+        this.singPlayer.stop()
+        this.singPlayer.destroy()
+        this.singPlayer = ''
+      }
+      if (player) {
+        player.stop()
+      }
+    };
+    onShow() {
+      console.log(`onShow`)
+      this.scrollTop = 0
+      this.lyricOHeight = 0
+      this.currentPLyricIndex = 0
+      this.$apply()
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .container {
+    justify-content: flex-start;
+    min-height: 100vh;
+  }
+  .audio_auth_box {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.47);
+    .audio_auth_container {
+      background: #fff;
+      width: 554rpx;
+      height: 238rpx;
+      .audio_auth_title {
+        width: 554rpx;
+        height: 142rpx;
+        line-height: 142rpx;
+        border-bottom: 2rpx solid #EAEAEA;
+        text-align: center;
+        font-family: PingFangSC-Medium;
+        font-size: 30rpx;
+        color: #4A4A4A;
+        letter-spacing: 0;
+      }
+      .audio_auth_btn {
+        color: #2ED73C;
+        font-family: PingFangSC-Medium;
+        font-size: 30rpx;
+        height: 90rpx;
+        line-height: 90rpx;
+        border: 2rpx solid transparent;
+        background-color: transparent;
+        letter-spacing: 0;
+        text-align: center;
+      }
+      .audio_auth_btn::after {
+        border: none;
+      }
+    }
+  }
+  .lyric_container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 150rpx;
+    height: 200rpx;
+    .lyric_main_container {
+      overflow: hidden;
+      display: flex;
+      flex-direction: row;
+      .lyric_main {
+        text-align: center;
+        font-family: PingFangSC-Semibold;
+        font-size: 40rpx;
+        font-weight: bold;
+        color: #ffffff;
+        letter-spacing: 0;
+        margin:0 40rpx 0rpx 40rpx;
+        padding-bottom:8rpx; 
+        flex: 1;
+        word-break: break-all;
+      }
+    }
+    .translation_lyric {
+      font-size: 32rpx;
+      color: #979797;
+      margin-left: 40rpx;
+      margin-right: 40rpx;
+      font-family: PingFangSC-Semibold;
+      font-size: 28rpx;
+      letter-spacing: 0;
+      word-break: break-all;
+      height: 40rpx;
+      line-height: 40rpx;
+      margin-top: 6rpx;
+    }
+  }
+  .playing_box {
+    width: 100%;
+    height: 480rpx;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+  .music_icon {
+    width: 300rpx;
+    height: 300rpx;
+    border: 20rpx solid #2c2c2c;
+    border-radius: 50%;
+  }
+  .musci_tips_box {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background: #2C2C2C;
+    border-radius: 32rpx;
+    height: 64rpx;
+    width: 384rpx;
+    margin-bottom: 18rpx;
+  }
+  .music_txt {
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #FFFFFF;
+  }
+  .practice_close {
+    width: 24rpx;
+    height: 24rpx;
+    margin-left: 14rpx;
+  }
+  .practice_done {
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    color: #303030;
+    width: 176rpx;
+    height: 176rpx;
+    border-radius: 50%;
+    line-height: 176rpx;
+    text-align: center;
+    background-image: linear-gradient(-131deg, #FFE15F 0%, #FED300 100%);
+    box-shadow: 0 2px 6px 0 rgba(254, 215, 26, 0.84);
+  }
+  .begin_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-top: 44rpx;
+  }
+  .begin_box {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    margin-top: 38rpx;
+  }
+  .begin_tips {
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #FFFFFF;
+  }
+  .sing_action {
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #FFDC51;
+    padding: 4rpx;
+  }
+  .practice_ing {
+    height: 340rpx;
+    width: 500rpx;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    position: relative;
+    margin-top: 44rpx;
+  }
+  .practice_date {
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #FFFFFF;
+    margin-top: 12rpx;
+  }
+  .play_btn {
+    width: 50rpx;
+    height: 50rpx;
+  }
+  .play_btn_box {
+    width: 96rpx;
+    height: 96rpx;
+    border: 2rpx solid #979797;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .back_btn {
+    width: 76rpx;
+    height: 76rpx;
+  }
+  .share_btn {
+    width: 76rpx;
+    height: 76rpx;
+  }
+  .practice_complete {
+    width: 400rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+    position: relative;
+    margin-top: 80rpx;
+  }
+  .pratice_continue {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12rpx;
+    margin-top: 18rpx;
+  }
+  .back_btn_box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    width: 132rpx;
+    height: 132rpx;
+    border-radius: 50%;
+  }
+  .share_btn_box {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background: #FFDC51;
+    width: 132rpx;
+    height: 132rpx;
+    border-radius: 50%;
+  }
+  .recording_icon {
+    position: absolute;
+    width: 460rpx;
+    height: 460rpx;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .back_btn_tips {
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #FFFFFF;
+    margin-top: 8rpx;
+  }
+  .back_btn_box_b {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .indacator {
+    width: 16rpx;
+    height: 16rpx;
+    background: #fff;
+    border-radius: 50%;
+    margin-right: 18rpx;
+  }
+  .lyric_indacator {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    margin-left: 32rpx;
+    margin-top: 12rpx;
+    height: 8rpx;
+  }
+  .prelude_container {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    justify-content: flex-start;
+    height: 400rpx;
+  }
+  .prelude_box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .prelude_tips {
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #CCCCCC;
+    letter-spacing: 0;
+    margin-bottom: 12rpx;
+  }
+  .prelude_seek {
+    border: 2rpx solid #636363;
+    border-radius: 40rpx;
+    height: 80rpx;
+    width: 224rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 32rpx;
+    color: #FFFFFF;
+    text-align: center;
+    line-height: 80rpx;
+  }
+  .burn_seek{
+    border: 2rpx solid #636363;
+    border-radius: 40rpx;
+    height: 80rpx;
+    width: 224rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 32rpx;
+    color: #303030;
+    text-align: center;
+    line-height: 80rpx;
+    background: #FFDC51;
+    margin-left: 31rpx;
+  }
+  .prelude_row{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    height: 200rpx;
+  }
+  .prelude_record {
+    font-size: 176rpx;
+    color: #FFDC51;
+  }
+  .show_toast{
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top:0;
+    left: 0;
+    z-index: 99999;
+    background: rgba(0, 0, 0, 0.47);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .show_toast_box{
+    width: 554rpx;
+    height: 388rpx;
+    background: #FFFFFF;
+    border-radius: 20rpx;
+    display: flex;
+    align-items: center;
+    flex-flow: column;
+
+  }
+  .show_toast_box>:first-child{
+    font-weight: bold;
+    width: 310rpx;
+    height: 42rpx;
+    line-height: 42rpx;
+    margin: 50rpx 0 30rpx 0;
+    font-family: PingFangSC-Medium;
+    font-size: 34rpx;
+    color: #303030;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 20px;
+  }
+  .show_toast_box>:nth-child(2){
+    width: 476rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 23px;
+    margin-bottom: 44rpx;
+  }
+  .show_toast_box>:last-child{
+    width: 468rpx;
+    height: 88rpx;
+    line-height: 88rpx;
+    background: #FFDC51;
+    border-radius: 44rpx;
+    font-size: 30rpx;
+    color: #303030;
+    letter-spacing: -0.41px;
+    text-align: center;
+  }
+#scrollViews>:last-child{
+  padding-bottom: 28rpx;
+}
+.scrollView{
+    margin-top:10rpx;
+    height:200rpx;
+  }
+  ::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  color: transparent;
+}
+</style>

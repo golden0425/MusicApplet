@@ -1,0 +1,1159 @@
+// <!-- 个人信息页 -->
+<template>
+  <view class='container'>
+    <view class='user_box'>
+      <image src="{{user.bgImg ? user.bgImg + '?x-oss-process=image/resize,m_lfit,h_750,w_750' :'../assets/info_head.png'}}" mode="aspectFill" lazy-load="true" class="bck_img"> </image>
+      <image src="../assets/info_mask.png" mode="scaleToFill" lazy-load="true" class="bck_mask"> </image>
+      <!-- 用户信息 -->
+      <!-- <view class='user_box' style='margin-top:{{navH + 90}}rpx;'> -->
+      <!-- 用户详情 -->
+      <!-- <view class='user_sex'>
+                      <image src='../assets/info_gender_female.png' wx:if='{{user.gender === 2}}' class='sex_icon' lazy-load='true'/>
+                      <image src='../assets/info_gender_male.png' wx:else class='sex_icon' lazy-load='true'/>
+                      <view class='sex'>{{user.age ? user.age : 0 }}</view>               
+                    </view> -->
+      <view class="userinfo">
+        <view class='user_top_container'>
+          <view class='user_headimg'>
+            <image src="{{user.headImg}}" class='user_avatar' @tap.stop='previewImage' mode='aspectFill' lazy-load='true' />
+            <view class='user_edit_button' @tap='modifyUserInfo'>编辑资料</view>
+          </view>
+        </view>
+        <!-- 用户名 -->
+        <view class="user_name">
+          <view class='music_top_tips'>{{user.nickName}}</view>
+        </view>
+        <!-- 展示徽章 -->
+        <view class='user_top'>
+          <view class='user_sex'>
+            <image src='../assets/male.png' wx:if='{{user.gender === 1}}' class='sex_icon' lazy-load='true' />
+            <image src='../assets/female.png' wx:elif='{{user.gender === 0}}' lazy-load='true' class='sex_icon' />
+            <view class='sex'>{{user.age ? user.age : 0 }}</view>
+          </view>
+          <view class='username_box_medal one'>
+            <view class='usermedal' wx:if="{{user.medalName}}">
+              <view id="clearmargin">{{user.medalName}}</view>
+            </view>
+          </view>
+          <view class='username_box_medal two'>
+            <view class='usermedal' wx:if="{{user.levelName}}">
+              <view>{{user.levelName}}</view>
+              <view>{{user.userLevel}}</view>
+            </view>
+          </view>
+        </view>
+        <!-- 个人说明 -->
+        <view class="signature">{{user.introduce ? user.introduce:"🙁 + 🎵+ 🎤 = 😀 "}}</view>
+        <!--  粉丝关注 -->
+        <view class='user_bottom'>
+          <view class='user_fans_box'>
+            <view class='user_fans' @tap.stop='showFollower'>
+              <view class='user_fans_count'>{{user.followerCount}}</view>
+              <view class='user_fans_tips'>关注</view>
+            </view>
+            <view class='user_fans' @tap.stop='showFans'>
+              <view class='user_fans_count'>{{user.funsCount}}</view>
+              <view class='user_fans_tips'>粉丝</view>
+            </view>
+            <view class='user_fans' @tap.stop='showRanking'>
+              <view class='user_fans_count'>{{user.myRanking? user.myRanking:0}}</view>
+              <view class='user_fans_tips'>歌手排名</view>
+            </view>
+            <view class='user_fans'>
+              <view class='user_fans_count'>{{user.IleaderCount}}</view>
+              <view class='user_fans_tips'>领唱歌曲</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <!-- music list -->
+    <musicNav :auditNum.sync='auditNum' :scanMusicCount.sync='scanMusicCount' :singMusicCount.sync='singMusicCount' :likeMusicCount.sync='likeMusicCount' :currentIndex.sync='currentIndex' />
+    <block wx:if="{{currentIndex==0}}">
+      <repeat for="{{likedMusicList}}" key="index" index="index" item="item">
+        <view class='containers'>
+          <view class="leading_singer_box">
+            <view class="box_top">
+              <view class="top_title" @tap="tosongRank({{item}})">{{item.musicName}}</view>
+              <view class="image">
+                <view class="top_msg" wx:if="{{item.ranking}}">实时排名
+                  <view>No.{{item.ranking}}</view>
+                </view>
+              </view>
+            </view>
+            <view class="box_center">
+              <view class='box_center_one'>
+                <view class="box_center_title">{{item.nickName}}</view>
+                <view class="box_center_medal" wx:if="{{item.challengeTime!=='第null期'}}">{{item.challengeTime}}</view>
+              </view>
+              <view class='box_center_two'>
+                <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true"></image>
+                <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                  <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}" ></image>
+                  <text>{{ item.time }}'</text>
+                </view>
+                <view class="box_bottom_right">
+                  <view>{{ (item.pickNum ) ? item.pickNum :0}}人Pick</view>
+                  <image src="{{ item.pick ? '/assets/lead_pick_clicked.png' : '/assets/lead_pick_normal.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="Pick({{item}},{{index}})"></image>
+                </view>
+              </view>
+            </view>
+            <view class="box_bottom">
+              <image src="/assets/lead_share.png" mode="aspectFill" lazy-load="true"></image>
+              <button size="defult" type="defult" open-type="share" class="share" data-item='{{item}}' id='pick'></button>
+              <view>邀请好友Pick我</view>
+            </view>
+          </view>
+        </view>
+      </repeat>
+      <view class='empty_container' wx:if='{{likedMusicList <=0 }}'>
+        <image class='empty_icon' src='../assets/empty.png' />
+        <view class='empty_title'>你本周还没有来领唱哦</view>
+      </view>
+    </block>
+    <block wx:if="{{currentIndex==1}}">
+      <repeat for="{{signedMusicList}}" key="index" index="index" item="item">
+        <view class='containers'>
+          <view class="leading_singer_box">
+            <view class="box_top">
+              <view class="top_title" @tap="tosongRank({{item}})">{{item.musicName}}</view>
+              <view class="image">
+                <view class="top_msg" wx:if="{{item.challengeTime!=='第null期'}}">{{ item.challengeTime }}
+                  <view wx:if="{{item.ranking}}">No.{{item.ranking}}</view>
+                </view>
+              </view>
+            </view>
+            <view class="box_center">
+              <view class='box_center_one'>
+                <view class="box_center_title">{{ item.nickName }}</view>
+              </view>
+              <view class='box_center_two'>
+                <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true"></image>
+                <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                  <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}" ></image>
+                  <text>{{ item.time }}'</text>
+                </view>
+                <view class="playCount">{{ item.playCount }}人听过</view>
+              </view>
+            </view>
+            <view class="box_bottom">
+              <view class="box_bottom_one">
+                <image src="/assets/lead_share.png" mode="aspectFill" lazy-load="true"></image>
+                <button size="defult" type="defult" open-type="share" class="share" data-item='{{item}}' id='love'></button>
+                <view>分享</view>
+              </view>
+              <view class="box_bottom_two">
+                <image src="{{ item.love ?'/assets/leadprofile_like_clicked.png':'/assets/leadprofile_like_normal_red.png' }}" mode="aspectFill" lazy-load="true" @tap.stop="Love({{item}},{{index}})"></image>
+                <view>{{item.loveNum}}人喜欢我</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </repeat>
+      <view class='empty_container' wx:if='{{signedMusicList <=0 }}'>
+        <image class='empty_icon' src='../assets/empty.png' />
+        <view class='empty_title'>你还没有领唱过，快来领唱Pick</view>
+      </view>
+    </block>
+    <block wx:if="{{currentIndex==2}}">
+      <repeat for="{{challengeAuditList}}" key="index" index="index" item="item">
+        <view class='containers'>
+          <view class="leading_singer_box">
+            <view class="box_top">
+              <view class="top_title" @tap="tosongRank({{item}})">{{item.musicName}}</view>
+              <view class="image">
+                <view class="top_msg" >审核中
+                  <view wx:if="{{item.ranking}}">No.{{item.ranking}}</view>
+                </view>
+              </view>
+            </view>
+            <view class="box_center">
+              <view class='box_center_one'>
+                <view class="box_center_title">{{ item.nickName }}</view>
+              </view>
+              <view class='box_center_two'>
+                <image class="user_img" src="{{ item.headImg }}" mode="aspectFill" lazy-load="true"></image>
+                <view class="box_center_play" @tap.stop="playMusic({{item}},{{index}})">
+                  <image src="{{(index !== cindex) ? '/assets/sing_play_btn_l.png' : '/assets/sing_pause_btn_l.png'}}" ></image>
+                  <text>{{ item.time }}'</text>
+                </view>
+                <!-- <view class="playCount">{{ item.playCount }}人听过</view> -->
+              </view>
+            </view>
+            <view class="box_bottom">{{ item.challengeTime }}</view>
+          </view>
+        </view>
+      </repeat>
+      <view class='empty_container' wx:if='{{challengeAuditList <=0 }}'>
+        <image class='empty_icon' src='../assets/empty.png' />
+        <view class='empty_title'>暂无待审核歌曲，快来领唱</view>
+      </view>
+    </block>
+    <palletMask wx:if='{{!isShowedAddMyMin && (user.funsCount > 0 || user.IleaderCount > 0)}}' /> 
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import musicNav from '@/components/musicNav'
+  import api from '@/api/api'
+  import PaginationModel from '@/models/paginationModel'
+  const likePageMode = new PaginationModel()
+  const followIdealMode = new PaginationModel()
+  const challengeMore = new PaginationModel()
+  import AudioInnerPlayer from '@/utils/audioPlayer'
+  import palletMask from '@/components/Add2PalletMask'
+  let player = new AudioInnerPlayer()
+  export default class Example extends wepy.page {
+    config = {
+      enablePullDownRefresh: true
+    };
+    data = {
+      scanMusicCount: 0,
+      singMusicCount: 0,
+      likeMusicCount: 0,
+      auditNum: 0,
+      navH: 0,
+      title: '',
+      currentIndex: 0,
+      uid: null,
+      user: null,
+      list: [],
+      likedMusicList: [],
+      signedMusicList: [],
+      challengeAuditList: [],
+      likedHasMore: true,
+      singHasMore: true,
+      challengeHasMore: true,
+      winHeight: '',
+      nickName: '',
+      isPlay: false,
+      cindex: '',
+      pick: '',
+      isShowedAddMyMin: true
+    };
+    components = {
+      musicNav,
+      palletMask
+    };
+    methods = {
+      tosongRank(item) {
+        wepy.navigateTo({
+          url: `/pages/rank/songRank?ideaId=${item.ideaId}`
+        })
+      },
+      Pick(item, index) {
+        const isPick = this.list[index]
+        const picknum = this.list[index]
+        if (!isPick.pick) {
+          isPick.pick = true
+          picknum.pickNum++
+          api.clickPick({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        } else {
+          api.clickPick({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        }
+        this.$apply()
+      },
+      Love(item, index) {
+        const isLove = this.list[index]
+        // const picknum = this.list[index]
+        if (!isLove.love) {
+          isLove.love = true
+          isLove.loveNum++
+            // picknum.pickNum++
+          api.clickLove({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        } else {
+          api.clickLove({
+            query: {
+              challengeId: item.challengeId,
+              ideaId: item.ideaId
+            }
+          })
+        }
+        this.$apply()
+      },
+      playMusic(item, index) {
+        this.$parent.event.emit('stopSubPagePlayer')
+        this.$parent.event.emit('onBackgroundTap')
+        // this.$parent.globalData.audioManager.pause()
+        player.stop()
+        if (!this.isPlay) {
+          player.play(item.songUrl)
+          this.isPlay = true
+          this.cindex = index
+          api.addlog({
+            query: {
+              challengeId: item.challengeId
+            }
+          })
+        } else {
+          if (this.cindex !== index) {
+            player.play(item.songUrl)
+            this.isPlay = true
+            this.cindex = index
+          } else {
+            player.pause()
+            this.isPlay = false
+            this.cindex = -1
+          }
+        }
+        console.log(player.isPlaying())
+        this.$apply()
+      },
+      randomPlayMusic() {
+        console.log('随机播放')
+      },
+      previewImage() {
+        wepy.previewImage({
+          urls: [this.user.headImg]
+        })
+      },
+      showRanking() {
+        wepy.navigateTo({
+          url: `/pages/rank/singerRank`
+        })
+      },
+      showFans() {
+        wepy.navigateTo({
+          url: `/pages/userInfo/follower?type=1&uid=${this.user.userId}`
+        })
+      },
+      showFollower() {
+        wepy.navigateTo({
+          url: `/pages/userInfo/follower?type=0&uid=${this.user.userId}`
+        })
+      },
+      clickMusicItem(index) {
+        const item = this.list[index]
+        switch (this.currentIndex) {
+          case 0:
+            wepy.setStorageSync('MusicList', this.likedMusicList)
+            this.$parent.globalData.audioManager.pause()
+            wepy.navigateTo({
+              url: `audioPlay?type=0&cidx=${index}&uid=${this.uid}`
+            })
+            break
+          case 1:
+            wepy.navigateTo({
+              url: `imitateSing?uid=${this.user.userId}&ideaId=${item.ideaId}&avatar=${this.user.headImg}`
+            })
+            break
+          default:
+            break
+        }
+      },
+      modifyUserInfo() {
+        wepy.navigateTo({
+          url: '/pages/userInfo/editUserInfo'
+        })
+      },
+      modifyUserMedal() {
+        wepy.navigateTo({
+          url: '/pages/userInfo/editUserMedal'
+        })
+      }
+    };
+    bindChange(e) {
+      console.log(e.detail.current)
+      this.currentIndex = e.detail.current
+      switch (e.detail.current) {
+        case 0:
+          if (this.likedMusicList.length > 0) {
+            this.list = this.likedMusicList
+          } else {
+            this.fetchData()
+          }
+          break
+        case 1:
+          if (this.signedMusicList.length > 0) {
+            this.list = this.signedMusicList
+          } else {
+            this.fetchData()
+          }
+          break
+        case 2:
+          if (this.challengeAuditList.length > 0) {
+            this.list = this.challengeAuditList
+          } else {
+            this.fetchData()
+          }
+          break
+        default:
+          break
+      }
+      this.$apply()
+    };
+    events = {
+      dimissMinParagramTips() {
+        this.isShowedAddMyMin = true
+        this.$parent.globalData.isShowedAddMyMin = true
+        this.$apply()
+      },
+      musicItemSelected(index) {
+        let init = () => {
+          player.stop()
+          this.isPlay = false
+          this.cindex = -1
+        }
+        this.currentIndex = index
+        switch (index) {
+          case 0:
+            init()
+            if (this.likedMusicList.length > 0) {
+              this.list = this.likedMusicList
+            } else {
+              this.fetchData()
+            }
+            break
+          case 1:
+            init()
+            if (this.signedMusicList.length > 0) {
+              this.list = this.signedMusicList
+            } else {
+              this.fetchData()
+            }
+            break
+          case 2:
+            init()
+            if (this.challengeAuditList.length > 0) {
+              this.list = this.challengeAuditList
+            } else {
+              this.fetchData()
+            }
+            break
+          default:
+            break
+        }
+        this.$apply()
+      },
+      back2TopPage() {
+        wepy.navigateBack({
+          delta: 1
+        })
+      }
+    };
+    watch = {};
+    computed = {};
+    async onLoad() {
+      this.nickName = wepy.getStorageSync('nickname')
+      this.navH = this.$parent.globalData.navHeight
+      this.winHeight = this.$parent.globalData.winHeight
+      this.uid = wepy.getStorageSync('userId')
+      await this.fetchUserInfo()
+      await this.fetchData()
+      this.$parent.event.offEvent('leadingSinger')
+      this.$parent.event.subscribeOn(
+        'leadingSinger',
+        this.playAudioComplete.bind(this))
+      this.$apply()
+    };
+    onHide() {
+      player.stop()
+      this.isPlay = false
+      this.cindex = -1
+      this.$apply()
+    };
+    playAudioComplete() {
+      this.cindex = -1
+      this.$apply()
+    };
+    async onShow() {
+      this.isShowedAddMyMin = this.$parent.globalData.isShowedAddMyMin
+      this.fetchUserInfo()
+      const refresh = wepy.getStorageSync('refreshUserInfo')
+      if (refresh) {
+        await this.fetchUserInfo()
+        this.$apply()
+        wepy.setStorageSync('refreshUserInfo', false)
+      }
+      this.fetchUnreadMessage()
+    };
+    onPullDownRefresh = async() => {
+      this.fetchData()
+      this.fetchUserInfo()
+    };
+    onReachBottom = async() => {
+      switch (this.currentIndex) {
+        case 0:
+          if (this.likedHasMore) {
+            this.fecthMoreData()
+          }
+          break
+        case 1:
+          if (this.singHasMore) {
+            this.fecthMoreData()
+          }
+          break
+        case 2:
+          if (this.challengeHasMore) {
+            this.fecthMoreData()
+          }
+          break
+        default:
+          break
+      }
+    }
+    async fetchUserInfo() {
+      const res = await api.fetchUserInfo({
+        query: {
+          toId: this.uid
+        }
+      })
+      this.user = res.user
+      // 获取用户名
+      this.title = this.user.nickName
+      this.music = this.user.likedMusicList
+      this.likeMusicCount = this.user.likedMusicCount
+      this.singMusicCount = this.user.singedMusicCount
+      this.scanMusicCount = this.user.historyMusicCount
+      this.auditNum = this.user.count
+      this.$apply()
+    }
+    async fetchData() {
+      this.likedMusicList = []
+      this.signedMusicList = []
+      this.challengeAuditList = []
+      this.list = []
+      let res = null
+      switch (this.currentIndex) {
+        case 0:
+          likePageMode.currentPage = 1
+          res = await likePageMode.pullToRefresh(api.challengeUserList, {
+            toUid: this.uid
+          })
+          break
+        case 1:
+          followIdealMode.currentPage = 1
+          res = await followIdealMode.pullToRefresh(api.challengeUserHisList, {
+            toUid: this.uid
+          })
+          break
+        case 2:
+          challengeMore.currentPage = 1
+          res = await challengeMore.pullToRefresh(api.challengeAudit, {
+            toUid: this.uid
+          })
+          break
+        default:
+          break
+      }
+      wepy.stopPullDownRefresh()
+      if (res.code === 0) {
+        if (res.challengeList) {
+          this.concatData(res.challengeList)
+        }
+      }
+      this.$apply()
+    };
+    async fecthMoreData() {
+      let res = null
+      switch (this.currentIndex) {
+        case 0:
+          res = await likePageMode.more(api.challengeUserList, {
+            toUid: this.uid
+          })
+          break
+        case 1:
+          res = await followIdealMode.more(api.challengeUserHisList, {
+            toUid: this.uid
+          })
+          break
+        case 2:
+          res = await challengeMore.more(api.challengeAudit, {
+            toUid: this.uid
+          })
+          break
+        default:
+          break
+      }
+      if (res.code === 0) {
+        if (res.challengeList) {
+          this.concatData(res.challengeList)
+        }
+      }
+      this.$apply()
+    };
+    concatData(list) {
+      this.list = this.list.concat(list)
+      switch (this.currentIndex) {
+        case 0:
+          this.likedMusicList = this.likedMusicList.concat(list)
+          this.likedHasMore = likePageMode.checkLoadMore(list)
+          break
+        case 1:
+          this.signedMusicList = this.signedMusicList.concat(list)
+          this.singHasMore = followIdealMode.checkLoadMore(list)
+          break
+        case 2:
+          this.challengeAuditList = this.challengeAuditList.concat(list)
+          this.challengeHasMore = challengeMore.checkLoadMore(list)
+          break
+        default:
+          break
+      }
+    };
+    onShareAppMessage(res) {
+      const item = res.target.dataset.item
+      console.log(item)
+      // const t = res.from
+      if (res.target.id === 'pick') {
+        var pickOrLove = this.$parent.globalData.shareInfo.pickOrLove
+        console.log(wepy.getStorageSync('userId'))
+  
+        return {
+          title: pickOrLove.text,
+          path: '/pages/index?uid=' + wepy.getStorageSync('userId') + '&shareType=1' + `&shareId=${item.challengeId}`,
+          imageUrl: pickOrLove.shareImg,
+          success: function(res) {}
+        }
+      } else if (res.target.id === 'love') {
+        var leaderSong = this.$parent.globalData.shareInfo.leaderSong
+        return {
+          title: leaderSong.text,
+          path: '/pages/index?uid=' + wepy.getStorageSync('userId') + '&shareType=2' + `&shareId=${item.challengeId}`,
+          imageUrl: leaderSong.shareImg,
+          success: function(res) {}
+        }
+      }
+    };
+    async fetchUnreadMessage() {
+      // const msgCount = await im.getUnreadMsgCount()
+      const res = await api.fetchUnreadMessage()
+      if (res.code === 0) {
+        const {
+          followNum,
+          pointNum
+        } = res
+        wepy.setStorageSync('followNum', followNum)
+        wepy.setStorageSync('pointNum', pointNum)
+        this.tabBarBadgeChangeAction(followNum + pointNum)
+      }
+    };
+    tabBarBadgeChangeAction(opt) {
+      if (opt > 0 && opt <= 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${opt}`
+        })
+      } else if (opt > 99) {
+        wx.setTabBarBadge({
+          index: 3,
+          text: `${'99+'}`
+        })
+      } else {
+        wx.removeTabBarBadge({
+          index: 3
+        })
+      }
+    }
+  }
+</script>
+
+<style lang="less" scoped>
+  .bck_img {
+    position: absolute;
+    width: 100%;
+    height: 586rpx;
+    top: 0;
+    left: 0;
+    z-index: 1;
+  }
+  .bck_mask {
+    position: absolute;
+    width: 100%;
+    height: 586rpx;
+    top: 0;
+    left: 0;
+    z-index: 2;
+  }
+  .music_top_tips {
+    margin-left: 40rpx;
+    line-height: 60rpx;
+    font-family: PingFangSC-Semibold;
+    z-index: 1;
+    font-family: PingFangSC-Medium;
+    font-size: 36rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+  }
+  .userinfo {
+    position: absolute;
+    z-index: 3;
+    height: 370rpx;
+    width: 100%;
+    top: 150rpx;
+    left: 0;
+  }
+  .user_name {
+    width: 90%;
+    display: flex;
+    flex-flow: row nowrap;
+    height: 70rpx;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .swiper-box {
+    display: block;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+  .container {
+    justify-content: flex-start;
+    min-height: 100vh;
+    background-color: #000000;
+  }
+  .username_box_medal {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-left: 18rpx;
+  }
+  .usermedal {
+    height: 40rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 12px;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    display: flex;
+    flex-flow: row nowrap;
+    padding: 0 16rpx 0 16rpx;
+  }
+  #clearmargin {
+    margin-right: 0;
+  }
+  .one {
+    background: #FF4174;
+    border-radius: 70rpx;
+  }
+  .two {
+    border-radius: 70rpx;
+    background: #73CFE5;
+  }
+  .usermedal>:first-child {
+    margin-right: 16rpx;
+    height: 40rpx;
+    line-height: 40rpx;
+  }
+  .usermedal>:last-child {
+    height: 40rpx;
+    line-height: 40rpx;
+  }
+  .sex_icon {
+    width: 86rpx;
+    height: 36rpx;
+  }
+  .sex {
+    font-family: PingFangSC-Regular;
+    font-size: 26rpx;
+    color: #FFFFFF;
+    margin-left: 40rpx;
+    z-index: 2;
+    position: absolute;
+  }
+  .user_sex {
+    height: 36rpx;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 86rpx;
+    margin-left: 40rpx;
+  }
+  .user_box {
+    width: 100%;
+    height: 586rpx;
+    position: relative;
+  }
+  .user_headimg {
+    width: 100%;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .user_top {
+    height: 40rpx;
+    display: flex;
+    flex-flow: row nowrap;
+    margin-top: 16rpx;
+  }
+  .user_introduct {
+    font-family: PingFangSC-Regular;
+    font-size: 12px;
+    color: #F1F1F1;
+    margin-top: 20rpx;
+  }
+  .user_avatar {
+    width: 112rpx;
+    height: 112rpx;
+    border-radius: 50%;
+    margin-left: 40rpx;
+  }
+  .user_top_container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 22rpx;
+  }
+  .user_center_medal {
+    width: 90%;
+    display: flex;
+    flex-direction: row;
+    margin: 0 auto; //margin-right: 36rpx;
+    border-bottom: 1px solid #fff;
+  }
+  .signature {
+    margin: 14rpx 0 0 40rpx;
+    width: 600rpx;
+    height: 50rpx;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: PingFangSC-Regular;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+  }
+  .user_fans_box {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-left: 40rpx;
+    .user_fans {
+      white-space: wrap;
+      width: 22%;
+      height: 70rpx;
+      .user_fans_count {
+        font-family: DINCondensed-Bold;
+        font-size: 36rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .user_fans_tips {
+        font-family: PingFangSC-Regular;
+        font-size: 24rpx;
+        color: #FFFFFF;
+        letter-spacing: 0;
+      }
+    }
+  }
+  .user_edit_button {
+    border: 2rpx solid #FFFFFF;
+    border-radius: 30rpx;
+    width: 138rpx;
+    height: 56rpx;
+    line-height: 56rpx;
+    text-align: center;
+    font-family: PingFangSC-Regular;
+    font-size: 12px;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    margin-right: 36rpx;
+  }
+  .user_bottom {
+    margin-top: 16rpx;
+    height: 70rpx;
+  }
+  .containers {
+    height: 370rpx;
+    padding-bottom: 32rpx;
+    background: #000000;
+  }
+  .leading_singer_box {
+    width: 670rpx;
+    height: 370rpx;
+    background: #FFFFFF;
+    box-shadow: 0 8rpx 0 0 #424242;
+    border-radius: 20rpx;
+  }
+  .box_top {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: center;
+    height: 88rpx;
+    width: 670rpx;
+    border-bottom: 2rpx solid #F5F5F5;
+  }
+  .top_title {
+    width: 300rpx;
+    margin-left: 32rpx;
+    height: 40rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top_msg {
+    display: flex;
+    justify-content: flex-end;
+    margin-right: 40rpx;
+    width: 100%;
+    height: 40rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    color: #979797;
+    margin-left: 16rpx;
+    position: absolute;
+    right: 0rpx;
+    line-height: 40rpx;
+  }
+  .top_msg>view {
+    position: relative;
+    top: -3rpx;
+    margin-left: 10rpx; // font-family: DINCondensed-Bold;
+    font-size: 40rpx;
+    color: #FF4174;
+    letter-spacing: 0;
+    font-weight: bold;
+  }
+  .image>image {
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 50%;
+  }
+  .image>.image_two {
+    position: absolute;
+    left: 38rpx;
+    background: #73CFE5;
+  }
+  .image>.image_three {
+    position: absolute;
+    left: 76rpx;
+    background: #FF4174;
+  }
+  .image {
+    width: 300rpx;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .box_center {
+    display: flex;
+    flex-flow: row wrap;
+    height: 192rpx;
+    border-bottom: 2rpx solid #F5F5F5;
+  }
+  .box_center_one {
+    width: 100%;
+    margin-top: 18rpx;
+    height: 46rpx;
+    margin-left: 32rpx;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: space-between;
+  }
+  .box_center_title {
+    
+    font-family: PingFangSC-Medium;
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #303030;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .box_center_medal {
+    font-family: PingFangSC-Regular;
+    font-size: 24rpx;
+    color: #979797;
+    line-height: 46rpx;
+    margin-right: 36rpx;
+  }
+  .center_medal {
+    padding: 0 20rpx 0 20rpx;
+    background: #FF4174;
+    border-radius: 18rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #FFFFFF;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 46rpx;
+    margin-left: 20rpx;
+  }
+  .box_center_two {
+    width: 100%;
+    height: 94rpx;
+    margin-top: 16rpx;
+    position: relative;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+  }
+  .box_center_two>.user_img {
+    position: absolute;
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 50%;
+    margin-left: 32rpx;
+    z-index: 1;
+    border: 4rpx solid #000000;
+  }
+  .box_center_play {
+    position: absolute;
+    left: 54rpx;
+    width: 270rpx;
+    height: 64rpx;
+    background: #FFFFFF;
+    border: 4rpx solid #303030;
+    border-bottom-right-radius: 50rpx;
+    border-top-right-radius: 50rpx;
+  }
+  .box_center_play>image {
+    position: absolute;
+    left: 84rpx;
+    top: 16rpx;
+    width: 30rpx;
+    height: 34rpx;
+  }
+  .box_center_play>text {
+    position: absolute;
+    top: 14rpx;
+    left: 134rpx;
+    font-family: PingFangSC-Regular;
+    font-size: 28rpx;
+    color: #303030;
+  }
+  .else_img {
+    width: 216rpx;
+    height: 94rpx;
+    position: absolute;
+    left: 414rpx;
+  }
+  .box_bottom {
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: center;
+    font-family: PingFangSC-Medium;
+    font-size: 28rpx;
+    color: #979797;
+    height: 37.4px;
+    line-height: 37.4px;
+  }
+  .box_bottom>image {
+    margin-top: 12rpx;
+    width: 52rpx;
+    height: 52rpx;
+    margin-right: 20rpx;
+  }
+  .box_bottom>view {
+    font-family: PingFangSC-Medium;
+    font-size: 14px;
+    color: #303030;
+    line-height: 76rpx;
+    height: 64rpx;
+    font-weight: bold;
+  }
+  .box_bottom_one>image {
+    margin-top: 12rpx;
+    width: 52rpx;
+    height: 52rpx;
+    margin-right: 20rpx;
+  }
+  .box_bottom_one>view {
+    font-family: PingFangSC-Medium;
+    font-size: 14px;
+    color: #303030;
+    line-height: 76rpx;
+    height: 64rpx;
+  }
+  .box_bottom_one> {
+    margin-left: 36rpx;
+  }
+  .box_bottom_right {
+    position: absolute;
+    right: 0;
+    display: flex;
+    align-items: center;
+    flex-flow: row nowrap;
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+    margin-right: 0;
+  }
+  .box_bottom_right>image {
+    width: 54rpx;
+    height: 40rpx;
+    margin: 0 34rpx 0 10rpx;
+  }
+  .box_bottom_one,
+  .box_bottom_two {
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    width: 50%;
+  }
+  .box_bottom_two {
+    justify-content: flex-end;
+    margin-right: 36rpx;
+  }
+  .box_bottom_two>image {
+    width: 44rpx;
+    height: 40rpx;
+    margin-top: 12rpx;
+  }
+  .box_bottom_two>view {
+    margin-left: 16rpx;
+    font-family: PingFangSC-Medium;
+    font-size: 14px;
+    color: #303030;
+    line-height: 76rpx;
+    height: 64rpx;
+  }
+  .empty_container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 100rpx;
+    .empty_icon {
+      width: 172rpx;
+      height: 166rpx;
+    }
+    .empty_title {
+      font-family: PingFangSC-Regular;
+      font-size: 28rpx;
+      color: #8A8A8A;
+      margin-top: 36rpx;
+    }
+  }
+  .share {
+    position: absolute;
+    width: 335rpx;
+    height: 64rpx;
+    opacity: 0;
+  }
+  .playCount {
+    font-family: PingFangSC-Medium;
+    font-size: 24rpx;
+    color: #979797;
+    width: 102rpx;
+    height: 34rpx;
+    position: absolute;
+    right: 40rpx;
+  }
+</style>
